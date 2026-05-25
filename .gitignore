@@ -1,0 +1,35 @@
+# Local paper artifacts are downloaded for this workspace but are not committed by default.
+papers/pdf/*.pdf
+papers/text/*.txt
+
+# Large experiment and model artifacts.
+output/
+outputs/
+results/
+experiments/**/output/
+experiments/**/outputs/
+experiments/**/results/
+checkpoints/
+models/
+datasets/
+*.ckpt
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Caches and build artifacts.
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hf_cache/
+.torch_cache/
+.triton_cache/
+build/
+dist/
+*.egg-info/
+
+# External repos are tracked as submodules or documented clones.
+external/**/.pytest_cache/
+external/**/__pycache__/

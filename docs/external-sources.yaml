@@ -1,0 +1,28 @@
+external_repositories:
+  - id: dynamic-operator-optimization
+    name: Dop
+    upstream_url: https://github.com/harrysyz99/Dop
+    local_path: external/Dop
+    integration_method: git-submodule
+    revision: 59e50ae0894b1043e275828a157354befd7e67a3
+    branch: main
+    license_path: external/Dop/LICENSE
+    license_summary: Apache-2.0 with bundled third-party licenses
+  - id: qr-adaptor
+    name: qr_adapter
+    upstream_url: https://github.com/harrysyz99/qr_adapter
+    local_path: external/qr_adapter
+    integration_method: git-submodule
+    revision: e1b89fdfa3040d7cb6a6ad300ad1c63e7f0f197f
+    branch: main
+    license_path: external/qr_adapter/LICENSE
+    license_summary: MIT
+  - id: autoqra
+    name: autoqra
+    upstream_url: https://github.com/harrysyz99/autoqra
+    local_path: external/autoqra
+    integration_method: git-submodule
+    revision: 66a5de5f2372695b2a3a6bed4e4c4b647d47f1ca
+    branch: main
+    license_path: external/autoqra/LICENSE
+    license_summary: MIT

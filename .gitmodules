@@ -1,0 +1,9 @@
+[submodule "external/Dop"]
+	path = external/Dop
+	url = https://github.com/harrysyz99/Dop
+[submodule "external/autoqra"]
+	path = external/autoqra
+	url = https://github.com/harrysyz99/autoqra
+[submodule "external/qr_adapter"]
+	path = external/qr_adapter
+	url = https://github.com/harrysyz99/qr_adapter
