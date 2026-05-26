@@ -14,9 +14,9 @@ TIDAL is an open-source toolkit for efficient large-model systems. It provides p
 
 ## Features
 
-- Rank allocation for LoRA fine-tuning on pruned LLMs.
-- Mixed-precision quantization utilities for structured pruning pipelines.
-- Global rank and sparsity allocation for low-rank plus sparse compression.
+- RankAdaptor-style performance-model rank search for LoRA fine-tuning on pruned LLMs.
+- QPruner-style mutual-information initialization plus budgeted mixed-precision refinement.
+- CAP-style robust PCA and global rank/sparsity policy search for compression.
 - CPU reference implementation for segmented gather matrix-vector LoRA serving operators.
 - Integrated upstream codebases for Dynamic Operator Optimization, QR-Adaptor, and AutoQRA.
 - A clean API surface for adding more efficient inference, fine-tuning, serving, post-training, and RL components.
@@ -43,19 +43,21 @@ Validate the method/source manifest:
 /opt/venv/bin/python -m tidal.manifest methods/sources.yaml
 ```
 
-Run a CPU example:
+Run CPU examples for the local method implementations:
 
 ```bash
 /opt/venv/bin/python examples/rankadaptor_allocate.py
+/opt/venv/bin/python examples/qpruner_allocate.py
+/opt/venv/bin/python examples/cap_optimize.py
 ```
 
 ## Method Modules
 
 | Module | Description |
 | --- | --- |
-| `tidal.rankadaptor` | Hierarchical LoRA rank allocation under a budget. |
-| `tidal.qpruner` | Mutual-information driven mixed-precision bit allocation and quantization helpers. |
-| `tidal.cap` | RPCA decomposition and global rank/sparse budget allocation. |
+| `tidal.rankadaptor` | Log-rank performance surrogate fitting, coordinate rank search, and PEFT rank-pattern export. |
+| `tidal.qpruner` | Mutual-information scoring, feasible bitwidth enumeration, and GP expected-improvement refinement. |
+| `tidal.cap` | RPCA decomposition, greedy compression, and Bernoulli policy search for global rank/sparse budgets. |
 | `tidal.sgmv` | CPU reference implementation of segmented LoRA SGMV shrink/expand operators. |
 
 ## Integrated Repositories

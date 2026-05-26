@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TIDAL | Efficient LLM Toolkit</title>
-    <meta name="description" content="TIDAL provides efficient LLM components for compression, adaptation, and serving.">
+    <meta name="description" content="TIDAL provides efficient LLM components for compression, adaptation, serving, and post-training.">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="#top" aria-label="TIDAL home">TIDAL</a>
       <nav class="nav" aria-label="Primary navigation">
-        <a href="#features">Features</a>
+        <a href="#modules">Modules</a>
         <a href="#methods">Methods</a>
         <a href="#team">Team</a>
       </nav>
@@ -21,59 +21,58 @@
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="kicker">Efficient LLM toolkit</p>
+          <p class="kicker">Open-source efficient LLM systems</p>
           <h1 id="hero-title">TIDAL</h1>
-          <p class="subtitle">Reusable components for LLM compression, low-rank adaptation, quantization, and multi-tenant LoRA serving.</p>
+          <p class="subtitle">A reusable toolkit for compression, low-rank adaptation, mixed-precision quantization, and multi-tenant LoRA serving.</p>
           <div class="actions" aria-label="Project actions">
             <a class="button primary" href="https://github.com/manlenzzz/tidal-ai">Repository</a>
             <a class="button secondary" href="https://github.com/manlenzzz/tidal-ai#quickstart">Quickstart</a>
           </div>
         </div>
-        <figure class="hero-visual">
-          <img src="assets/tidal-system-map.png" alt="TIDAL system map for compression, adaptation, serving, post-training, and RL">
-        </figure>
       </section>
 
       <section class="metrics" aria-label="Project status">
-        <div><strong>4</strong><span>Core Python modules</span></div>
-        <div><strong>3</strong><span>Integrated upstream repos</span></div>
-        <div><strong>6</strong><span>Research methods</span></div>
+        <div><strong>4</strong><span>Core modules</span></div>
+        <div><strong>3</strong><span>Upstream integrations</span></div>
+        <div><strong>6</strong><span>Tracked methods</span></div>
       </section>
 
-      <section id="features" class="section methods" aria-labelledby="features-title">
+      <section id="modules" class="section modules" aria-labelledby="modules-title">
         <div class="section-heading">
-          <p class="kicker">Features</p>
-          <h2 id="features-title">Building blocks for efficient large-model systems</h2>
+          <p class="kicker">Modules</p>
+          <h2 id="modules-title">Research methods exposed as working APIs</h2>
         </div>
-        <div class="method-grid">
-          <article class="method-card accent-teal"><span>Compression</span><h3>Pruning + Quantization</h3><p>Structured pruning utilities, mixed-precision allocation, and quantization helpers.</p></article>
-          <article class="method-card accent-blue"><span>Adaptation</span><h3>LoRA Rank Allocation</h3><p>Budget-aware hierarchical adapter rank selection for pruned models.</p></article>
-          <article class="method-card accent-amber"><span>Serving</span><h3>Segmented LoRA Operators</h3><p>Reference SGMV semantics for multi-tenant LoRA serving operators.</p></article>
+        <div class="module-grid">
+          <article class="module-card accent-teal"><span>RankAdaptor</span><h3>Performance-model rank search</h3><p>Fit a log-rank surrogate from measured configs, then allocate adapter ranks under a global budget.</p></article>
+          <article class="module-card accent-blue"><span>QPruner</span><h3>MI-guided precision search</h3><p>Initialize bitwidths from mutual information and refine feasible configs with Gaussian-process acquisition.</p></article>
+          <article class="module-card accent-amber"><span>CAP</span><h3>Global rank and sparsity</h3><p>Run robust PCA, then optimize low-rank factors and sparse entries with budgeted policy search.</p></article>
+          <article class="module-card accent-rose"><span>Serving</span><h3>Segmented LoRA operators</h3><p>Reference SGMV and LoRA SGMV semantics for validating multi-tenant serving kernels.</p></article>
         </div>
       </section>
 
-      <section id="methods" class="section scope" aria-labelledby="methods-title">
+      <section id="methods" class="section methods" aria-labelledby="methods-title">
         <div class="section-heading">
-          <p class="kicker">Methods</p>
-          <h2 id="methods-title">Research code organized as APIs</h2>
+          <p class="kicker">Method map</p>
+          <h2 id="methods-title">Efficient training, compression, and serving in one codebase</h2>
         </div>
-        <div class="scope-table" role="table" aria-label="TIDAL methods">
-          <div role="row"><strong role="cell">RankAdaptor</strong><span role="cell">Hierarchical LoRA rank allocation.</span></div>
-          <div role="row"><strong role="cell">QPruner</strong><span role="cell">Mixed-precision quantization for structured pruning.</span></div>
-          <div role="row"><strong role="cell">CAP</strong><span role="cell">Global low-rank and sparse compression allocation.</span></div>
-          <div role="row"><strong role="cell">Dop / QR-Adaptor / AutoQRA</strong><span role="cell">Integrated collaborator-maintained code repositories.</span></div>
+        <div class="method-list" role="table" aria-label="TIDAL methods">
+          <div role="row"><strong role="cell">RankAdaptor</strong><span role="cell">Implemented locally: performance surrogate, coordinate rank search, PEFT export.</span></div>
+          <div role="row"><strong role="cell">QPruner</strong><span role="cell">Implemented locally: MI scoring, budgeted bitwidth enumeration, GP refinement.</span></div>
+          <div role="row"><strong role="cell">CAP</strong><span role="cell">Implemented locally: robust PCA, global greedy compression, Bernoulli policy search.</span></div>
+          <div role="row"><strong role="cell">Dop</strong><span role="cell">Integrated upstream repository for multi-tenant LoRA operator serving.</span></div>
+          <div role="row"><strong role="cell">QR-Adaptor</strong><span role="cell">Integrated upstream repository for linguistic-hierarchy mixed-precision tuning.</span></div>
+          <div role="row"><strong role="cell">AutoQRA</strong><span role="cell">Integrated upstream repository for joint quantization and adapter optimization.</span></div>
         </div>
       </section>
 
-      <section id="team" class="section roadmap" aria-labelledby="team-title">
+      <section id="team" class="section team" aria-labelledby="team-title">
         <div class="section-heading">
           <p class="kicker">Team</p>
-          <h2 id="team-title">Developed by the TIDAL team</h2>
+          <h2 id="team-title">Maintained by the TIDAL team</h2>
         </div>
-        <div class="timeline">
-          <article><span>Maintainers</span><h3>Changhai Zhou, Yuhua Zhou, Shiyang Zhang</h3><p>Research and engineering for efficient inference, fine-tuning, compression, serving, and post-training.</p></article>
-          <article><span>Codebase</span><h3>Reusable Systems Components</h3><p>Methods are exposed as importable modules, runnable examples, tests, and upstream integrations.</p></article>
-          <article><span>Scope</span><h3>Efficient Large-Model Systems</h3><p>The toolkit is organized for adding team-maintained modules under consistent APIs.</p></article>
+        <div class="team-panel">
+          <h3>Changhai Zhou, Yuhua Zhou, Shiyang Zhang</h3>
+          <p>The repository is organized for team-maintained efficient-LLM components across inference, fine-tuning, serving, compression, post-training, and reinforcement learning.</p>
         </div>
       </section>
     </main>
