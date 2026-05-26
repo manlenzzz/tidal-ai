@@ -195,6 +195,80 @@ def allocate_ranks(
     ).config
 
 
+def collect_linear_profiles(
+    model: object,
+    *,
+    sensitivities: dict[str, float] | None = None,
+    min_rank: int = 0,
+    max_rank: int = 64,
+    rank_step: int = 1,
+    name_filter: Callable[[str], bool] | None = None,
+) -> list[ModuleProfile]:
+    """Build RankAdaptor profiles from torch.nn.Linear modules.
+
+    The LoRA cost per rank is in_features + out_features for each linear layer,
+    matching the parameter count of A and B adapter matrices.
+    """
+
+    try:
+        from torch import nn
+    except ImportError as exc:
+        raise ImportError("collect_linear_profiles requires PyTorch") from exc
+
+    sensitivity_map = sensitivities or {}
+    profiles: list[ModuleProfile] = []
+    for name, module in model.named_modules():
+        if not name or not isinstance(module, nn.Linear):
+            continue
+        if name_filter is not None and not name_filter(name):
+            continue
+        sensitivity = float(sensitivity_map.get(name, 1.0))
+        profiles.append(
+            ModuleProfile(
+                name=name,
+                sensitivity=sensitivity,
+                min_rank=min_rank,
+                max_rank=max_rank,
+                rank_step=rank_step,
+                cost_per_rank=int(module.in_features + module.out_features),
+            )
+        )
+    if not profiles:
+        raise ValueError("model does not contain matching torch.nn.Linear modules")
+    return profiles
+
+
+def build_lora_config(
+    rank_config: RankConfig,
+    *,
+    alpha_multiplier: int = 2,
+    target_modules: Sequence[str] | None = None,
+    **kwargs: object,
+) -> object:
+    """Create a PEFT LoraConfig from a RankAdaptor rank allocation."""
+
+    if alpha_multiplier <= 0:
+        raise ValueError("alpha_multiplier must be positive")
+    positive = {name: int(rank) for name, rank in rank_config.items() if int(rank) > 0}
+    if not positive:
+        raise ValueError("rank_config must contain at least one positive rank")
+
+    try:
+        from peft import LoraConfig
+    except ImportError as exc:
+        raise ImportError("build_lora_config requires peft") from exc
+
+    targets = list(target_modules) if target_modules is not None else sorted(positive)
+    return LoraConfig(
+        r=min(positive.values()),
+        lora_alpha=min(positive.values()) * alpha_multiplier,
+        target_modules=targets,
+        rank_pattern=dict(sorted(positive.items())),
+        alpha_pattern={name: rank * alpha_multiplier for name, rank in sorted(positive.items())},
+        **kwargs,
+    )
+
+
 def export_peft_rank_pattern(config: RankConfig, *, alpha_multiplier: int = 2) -> dict[str, dict[str, int]]:
     if alpha_multiplier <= 0:
         raise ValueError("alpha_multiplier must be positive")

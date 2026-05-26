@@ -32,7 +32,7 @@
       </section>
 
       <section class="metrics" aria-label="Project status">
-        <div><strong>4</strong><span>Core modules</span></div>
+        <div><strong>6</strong><span>Code modules</span></div>
         <div><strong>3</strong><span>Upstream integrations</span></div>
         <div><strong>6</strong><span>Tracked methods</span></div>
       </section>
@@ -40,12 +40,12 @@
       <section id="modules" class="section modules" aria-labelledby="modules-title">
         <div class="section-heading">
           <p class="kicker">Modules</p>
-          <h2 id="modules-title">Research methods exposed as working APIs</h2>
+          <h2 id="modules-title">Research methods exposed as Torch-ready APIs</h2>
         </div>
         <div class="module-grid">
-          <article class="module-card accent-teal"><span>RankAdaptor</span><h3>Performance-model rank search</h3><p>Fit a log-rank surrogate from measured configs, then allocate adapter ranks under a global budget.</p></article>
-          <article class="module-card accent-blue"><span>QPruner</span><h3>MI-guided precision search</h3><p>Initialize bitwidths from mutual information and refine feasible configs with Gaussian-process acquisition.</p></article>
-          <article class="module-card accent-amber"><span>CAP</span><h3>Global rank and sparsity</h3><p>Run robust PCA, then optimize low-rank factors and sparse entries with budgeted policy search.</p></article>
+          <article class="module-card accent-teal"><span>RankAdaptor</span><h3>Performance-model rank search</h3><p>Fit a log-rank surrogate, allocate adapter ranks under budget, and export PEFT configs.</p></article>
+          <article class="module-card accent-blue"><span>QPruner</span><h3>MI-guided precision search</h3><p>Initialize bitwidths from mutual information and rewrite Linear layers with mixed precision.</p></article>
+          <article class="module-card accent-amber"><span>CAP</span><h3>Global rank and sparsity</h3><p>Run robust PCA, optimize rank/sparse budgets, and pack Linear layers for inference.</p></article>
           <article class="module-card accent-rose"><span>Serving</span><h3>Segmented LoRA operators</h3><p>Reference SGMV and LoRA SGMV semantics for validating multi-tenant serving kernels.</p></article>
         </div>
       </section>
@@ -56,9 +56,9 @@
           <h2 id="methods-title">Efficient training, compression, and serving in one codebase</h2>
         </div>
         <div class="method-list" role="table" aria-label="TIDAL methods">
-          <div role="row"><strong role="cell">RankAdaptor</strong><span role="cell">Implemented locally: performance surrogate, coordinate rank search, PEFT export.</span></div>
-          <div role="row"><strong role="cell">QPruner</strong><span role="cell">Implemented locally: MI scoring, budgeted bitwidth enumeration, GP refinement.</span></div>
-          <div role="row"><strong role="cell">CAP</strong><span role="cell">Implemented locally: robust PCA, global greedy compression, Bernoulli policy search.</span></div>
+          <div role="row"><strong role="cell">RankAdaptor</strong><span role="cell">Implemented locally: performance surrogate, coordinate rank search, PEFT LoraConfig export.</span></div>
+          <div role="row"><strong role="cell">QPruner</strong><span role="cell">Implemented locally: MI scoring, budgeted bitwidth search, PyTorch quantized Linear backend.</span></div>
+          <div role="row"><strong role="cell">CAP</strong><span role="cell">Implemented locally: robust PCA, global rank/sparse search, PyTorch packed Linear backend.</span></div>
           <div role="row"><strong role="cell">Dop</strong><span role="cell">Integrated upstream repository for multi-tenant LoRA operator serving.</span></div>
           <div role="row"><strong role="cell">QR-Adaptor</strong><span role="cell">Integrated upstream repository for linguistic-hierarchy mixed-precision tuning.</span></div>
           <div role="row"><strong role="cell">AutoQRA</strong><span role="cell">Integrated upstream repository for joint quantization and adapter optimization.</span></div>
