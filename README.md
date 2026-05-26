@@ -26,13 +26,15 @@ TIDAL is an open-source toolkit for efficient large-model systems. It provides r
 ```bash
 git clone --recurse-submodules https://github.com/manlenzzz/tidal-ai.git
 cd tidal-ai
-python -m pip install -e .
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[torch]"
 ```
 
-Install the Torch/PEFT integration extra when using the model-rewrite examples:
+For algorithm-only usage without Torch/PEFT integrations, install the base package instead:
 
 ```bash
-python -m pip install -e ".[torch]"
+python -m pip install -e .
 ```
 
 ## Quickstart
@@ -40,23 +42,23 @@ python -m pip install -e ".[torch]"
 Validate the method/source manifest:
 
 ```bash
-/opt/venv/bin/python -m tidal.manifest methods/sources.yaml
+python -m tidal.manifest methods/sources.yaml
 ```
 
 Run CPU examples for the local method implementations:
 
 ```bash
-/opt/venv/bin/python examples/rankadaptor_allocate.py
-/opt/venv/bin/python examples/qpruner_allocate.py
-/opt/venv/bin/python examples/cap_optimize.py
+python examples/rankadaptor_allocate.py
+python examples/qpruner_allocate.py
+python examples/cap_optimize.py
 ```
 
 Run the Torch/PEFT reproduction entry points:
 
 ```bash
-/opt/venv/bin/python examples/torch_rankadaptor_peft.py
-/opt/venv/bin/python examples/torch_qpruner_quantize.py
-/opt/venv/bin/python examples/torch_cap_compress.py
+python examples/torch_rankadaptor_peft.py
+python examples/torch_qpruner_quantize.py
+python examples/torch_cap_compress.py
 ```
 
 ## Torch/PEFT APIs

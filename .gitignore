@@ -18,6 +18,10 @@ datasets/
 *.pt
 *.pth
 
+# Local virtual environments.
+.venv/
+venv/
+
 # Caches and build artifacts.
 __pycache__/
 .pytest_cache/
