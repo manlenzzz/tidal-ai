@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TIDAL | Toolkit for Inference, Deployment, Adaptation, and Learning</title>
+    <meta name="description" content="TIDAL is an open-source toolkit for efficient AI systems: compression, adaptation, serving, post-training, and reinforcement learning workflows.">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="TIDAL home">TIDAL</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="#methods">Methods</a>
+        <a href="#scope">Scope</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="https://github.com/manlenzzz/tidal-ai/blob/main/docs/index.md">Docs</a>
+      </nav>
+      <a class="repo-link" href="https://github.com/manlenzzz/tidal-ai">GitHub</a>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="kicker">Toolkit for Inference, Deployment, Adaptation, and Learning</p>
+          <h1 id="hero-title">TIDAL</h1>
+          <p class="subtitle">Open infrastructure for efficient AI systems: compression, adaptation, serving, post-training, and future RL workflows.</p>
+          <div class="actions" aria-label="Project actions">
+            <a class="button primary" href="https://github.com/manlenzzz/tidal-ai">Repository</a>
+            <a class="button secondary" href="https://github.com/manlenzzz/tidal-ai/blob/main/docs/method-zoo.md">Method Zoo</a>
+          </div>
+        </div>
+        <figure class="hero-visual">
+          <img src="assets/tidal-system-map.png" alt="TIDAL system map spanning compression, adaptation, serving, post-training, and RL">
+        </figure>
+      </section>
+
+      <section class="metrics" aria-label="Project status">
+        <div>
+          <strong>6</strong>
+          <span>Seed methods</span>
+        </div>
+        <div>
+          <strong>3</strong>
+          <span>External codebases integrated</span>
+        </div>
+        <div>
+          <strong>5</strong>
+          <span>Growth tracks</span>
+        </div>
+      </section>
+
+      <section id="methods" class="section methods" aria-labelledby="methods-title">
+        <div class="section-heading">
+          <p class="kicker">Method wave</p>
+          <h2 id="methods-title">From paper entries to reusable components</h2>
+        </div>
+        <div class="method-grid">
+          <article class="method-card accent-teal">
+            <span>Compression</span>
+            <h3>QPruner</h3>
+            <p>Probabilistic decision quantization for structured LLM pruning.</p>
+          </article>
+          <article class="method-card accent-blue">
+            <span>Adaptation</span>
+            <h3>RankAdaptor</h3>
+            <p>Hierarchical LoRA rank allocation for fine-tuning pruned models.</p>
+          </article>
+          <article class="method-card accent-amber">
+            <span>Serving</span>
+            <h3>Dynamic Operators</h3>
+            <p>Operator optimization for multi-tenant LoRA serving.</p>
+          </article>
+          <article class="method-card accent-violet">
+            <span>Adaptation</span>
+            <h3>QR-Adaptor</h3>
+            <p>Mixed-precision fine-tuning aligned with linguistic hierarchies.</p>
+          </article>
+          <article class="method-card accent-rose">
+            <span>Search</span>
+            <h3>AutoQRA</h3>
+            <p>Joint optimization of quantization and low-rank adapters.</p>
+          </article>
+          <article class="method-card accent-slate">
+            <span>Compression</span>
+            <h3>Global Rank/Sparsity</h3>
+            <p>Coupled global rank and sparsity optimization for LLM compression.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="scope" class="section scope" aria-labelledby="scope-title">
+        <div class="section-heading">
+          <p class="kicker">Scope</p>
+          <h2 id="scope-title">Built to grow beyond the first release</h2>
+        </div>
+        <div class="scope-table" role="table" aria-label="TIDAL scope">
+          <div role="row">
+            <strong role="cell">Inference</strong>
+            <span role="cell">Runtime-aware recipes, benchmarking, and future kernel integrations.</span>
+          </div>
+          <div role="row">
+            <strong role="cell">Deployment</strong>
+            <span role="cell">Serving-oriented LoRA and adapter-heavy workload support.</span>
+          </div>
+          <div role="row">
+            <strong role="cell">Adaptation</strong>
+            <span role="cell">Rank allocation, precision policies, and PEFT-compatible export.</span>
+          </div>
+          <div role="row">
+            <strong role="cell">Learning</strong>
+            <span role="cell">Post-training and RL workflows once the base methods are stable.</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="roadmap" class="section roadmap" aria-labelledby="roadmap-title">
+        <div class="section-heading">
+          <p class="kicker">Roadmap</p>
+          <h2 id="roadmap-title">Evidence first, then expansion</h2>
+        </div>
+        <div class="timeline">
+          <article>
+            <span>Now</span>
+            <h3>Provenance and method entries</h3>
+            <p>Manifest validation, submodule integration, local artifact policy, and reproducibility plans.</p>
+          </article>
+          <article>
+            <span>Next</span>
+            <h3>Reusable APIs and smoke checks</h3>
+            <p>CPU-testable allocation, pruning, precision, and export utilities backed by focused tests.</p>
+          </article>
+          <article>
+            <span>Later</span>
+            <h3>Serving, post-training, and RL</h3>
+            <p>Benchmarks and efficient training workflows routed through reproducible GPU execution.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

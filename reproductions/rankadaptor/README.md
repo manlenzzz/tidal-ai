@@ -1,8 +1,14 @@
 # RankAdaptor
 
-Paper: `RankAdaptor: Hierarchical Rank Allocation for Efficient Fine-Tuning Pruned LLMs via Performance Model`
+TIDAL method entry for hierarchical LoRA rank allocation when fine-tuning pruned LLMs.
 
-Status: plan drafted, paper-derived implementation.
+## Method Paper
+
+`RankAdaptor: Hierarchical Rank Allocation for Efficient Fine-Tuning Pruned LLMs via Performance Model`
+
+## TIDAL Status
+
+Paper-derived implementation plan. No full reproduction is claimed yet.
 
 ## Sources
 
@@ -10,20 +16,20 @@ Status: plan drafted, paper-derived implementation.
 - PDF: `../../papers/pdf/rankadaptor.pdf`
 - Text: `../../papers/text/rankadaptor.txt`
 
-## Implementation Plan
+## Planned Toolkit Components
 
-1. Extract the paper's performance model inputs, pruning assumptions, and hierarchical rank allocation objective.
-2. Implement a rank-allocation simulator that accepts layer/module metadata and a target adapter budget.
-3. Add LoRA rank assignment export compatible with common PEFT-style configuration.
-4. Reproduce the smallest reported setting first, using CPU-only unit tests for allocation logic before any GPU fine-tuning.
+1. Performance-model input parser for layer and module metadata.
+2. Hierarchical rank allocation solver for adapter budgets.
+3. PEFT-style export for LoRA rank assignments.
+4. CPU unit tests for deterministic allocation behavior.
 
 ## Verification Criteria
 
 - Manifest and paper text are available locally.
-- Rank allocation outputs are deterministic for fixed model metadata and budget.
+- Rank allocation outputs are deterministic for fixed metadata and budget.
 - GPU fine-tuning results are recorded only after Mint Ray execution with cleanup evidence.
 
 ## Current Evidence
 
-- Local PDF and text are staged.
-- No full reproduction is claimed yet.
+- Local PDF and extracted text are staged outside Git.
+- Paper-derived implementation plan is recorded.

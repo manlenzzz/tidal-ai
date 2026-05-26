@@ -1,8 +1,14 @@
 # Global Rank/Sparsity Optimization
 
-Paper: `Large Language Model Compression with Global Rank and Sparsity Optimization`
+TIDAL method entry for global LLM compression with coupled rank and sparsity budgets.
 
-Status: plan drafted, paper-derived implementation.
+## Method Paper
+
+`Large Language Model Compression with Global Rank and Sparsity Optimization`
+
+## TIDAL Status
+
+Paper-derived implementation plan. No full reproduction is claimed yet.
 
 ## Sources
 
@@ -11,12 +17,12 @@ Status: plan drafted, paper-derived implementation.
 - PDF: `../../papers/pdf/global-rank-sparsity.pdf`
 - Text: `../../papers/text/global-rank-sparsity.txt`
 
-## Implementation Plan
+## Planned Toolkit Components
 
-1. Extract the global optimization objective, constraints, and coupling between rank and sparsity.
-2. Implement a toy optimizer for layer-level rank/sparsity budgets using synthetic metadata.
-3. Add export formats for pruning masks and adapter ranks.
-4. Schedule model-level compression and evaluation through Mint Ray after prerequisites are recorded.
+1. Global optimization objective and constraint parser.
+2. Toy optimizer for layer-level rank and sparsity budgets.
+3. Export formats for pruning masks and adapter ranks.
+4. CPU tests for feasibility, determinism, and allocation accounting.
 
 ## Verification Criteria
 
@@ -26,5 +32,5 @@ Status: plan drafted, paper-derived implementation.
 
 ## Current Evidence
 
-- Local PDF and text are staged.
-- No full reproduction is claimed yet.
+- Local PDF and extracted text are staged outside Git.
+- Paper-derived implementation plan is recorded.

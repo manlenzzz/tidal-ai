@@ -1,6 +1,6 @@
 # GPU Execution Policy
 
-All GPU-required reproduction work must follow the root workspace policy.
+TIDAL separates CPU-testable toolkit logic from GPU-required training, inference, serving, and evaluation. All GPU-required reproduction work must follow the root workspace policy.
 
 ## Local Commands
 

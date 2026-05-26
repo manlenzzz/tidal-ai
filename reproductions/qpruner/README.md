@@ -1,8 +1,14 @@
 # QPruner
 
-Paper: `Qpruner: Probabilistic decision quantization for structured pruning in large language models`
+TIDAL method entry for structured LLM pruning with probabilistic decision quantization.
 
-Status: plan drafted, paper-derived implementation.
+## Method Paper
+
+`QPruner: Probabilistic Decision Quantization for Structured Pruning in Large Language Models`
+
+## TIDAL Status
+
+Paper-derived implementation plan. No full reproduction is claimed yet.
 
 ## Sources
 
@@ -10,12 +16,12 @@ Status: plan drafted, paper-derived implementation.
 - PDF: `../../papers/pdf/qpruner.pdf`
 - Text: `../../papers/text/qpruner.txt`
 
-## Implementation Plan
+## Planned Toolkit Components
 
-1. Extract the probabilistic decision quantization formulation and structured pruning units from the paper.
-2. Implement CPU-testable scoring and quantized pruning-decision utilities.
-3. Add model-shape adapters for common transformer blocks without running model pruning locally.
-4. Schedule the first pruning/evaluation run through Mint Ray after data/model prerequisites are recorded.
+1. Probabilistic decision quantization utilities.
+2. Structured pruning unit definitions for transformer blocks.
+3. CPU-testable scoring and mask construction logic.
+4. Export path for model-level pruning plans.
 
 ## Verification Criteria
 
@@ -25,5 +31,5 @@ Status: plan drafted, paper-derived implementation.
 
 ## Current Evidence
 
-- Local PDF and text are staged.
-- No full reproduction is claimed yet.
+- Local PDF and extracted text are staged outside Git.
+- Paper-derived implementation plan is recorded.

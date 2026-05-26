@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from toolkit.manifest import ManifestError, load_manifest, validate_manifest
+from tidal.manifest import ManifestError, load_manifest, validate_manifest
 
 
 def write_manifest(tmp_path: Path, body: str) -> Path:

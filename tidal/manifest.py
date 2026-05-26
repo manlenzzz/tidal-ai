@@ -81,7 +81,7 @@ def _validate_paper_entry(paper_id: str, paper: dict[str, Any]) -> None:
 def main() -> int:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Validate papers/sources.yaml")
+    parser = argparse.ArgumentParser(description="Validate the TIDAL paper source manifest")
     parser.add_argument("manifest", nargs="?", default="papers/sources.yaml")
     args = parser.parse_args()
 
