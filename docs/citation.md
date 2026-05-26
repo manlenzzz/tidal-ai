@@ -25,6 +25,7 @@ If TIDAL helps your research or engineering work, cite the toolkit and the speci
   eprint = {2406.15734},
   archivePrefix = {arXiv},
   primaryClass = {cs.CL},
+  doi = {10.48550/arXiv.2406.15734},
   url = {https://arxiv.org/abs/2406.15734}
 }
 ```
@@ -39,6 +40,7 @@ If TIDAL helps your research or engineering work, cite the toolkit and the speci
   eprint = {2412.11629},
   archivePrefix = {arXiv},
   primaryClass = {cs.LG},
+  doi = {10.48550/arXiv.2412.11629},
   url = {https://arxiv.org/abs/2412.11629}
 }
 ```
@@ -48,13 +50,13 @@ If TIDAL helps your research or engineering work, cite the toolkit and the speci
 ```bibtex
 @article{zhou2025dynamicoperator,
   title = {Dynamic Operator Optimization for Efficient Multi-Tenant LoRA Model Serving},
-  author = {Zhou, Changhai and Zhou, Yuhua and Han, Shijie and Zhang, Jiajin and Li, Hongguang},
+  author = {Zhou, Changhai and Zhou, Yuhua and Zhang, Shiyang and Wang, Yibin and Liu, Zekai},
   journal = {Proceedings of the AAAI Conference on Artificial Intelligence},
   volume = {39},
-  number = {28},
-  pages = {29825--29833},
+  number = {21},
+  pages = {22910--22918},
   year = {2025},
-  doi = {10.1609/aaai.v39i28.34453},
+  doi = {10.1609/aaai.v39i21.34453},
   url = {https://ojs.aaai.org/index.php/AAAI/article/view/34453}
 }
 ```
@@ -69,6 +71,7 @@ If TIDAL helps your research or engineering work, cite the toolkit and the speci
   eprint = {2505.03802},
   archivePrefix = {arXiv},
   primaryClass = {cs.LG},
+  doi = {10.48550/arXiv.2505.03802},
   url = {https://arxiv.org/abs/2505.03802}
 }
 ```
@@ -83,6 +86,7 @@ If TIDAL helps your research or engineering work, cite the toolkit and the speci
   eprint = {2602.22268},
   archivePrefix = {arXiv},
   primaryClass = {cs.LG},
+  doi = {10.48550/arXiv.2602.22268},
   url = {https://arxiv.org/abs/2602.22268}
 }
 ```
