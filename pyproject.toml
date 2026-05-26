@@ -13,8 +13,8 @@ dependencies = ["numpy", "PyYAML"]
 [project.optional-dependencies]
 torch = ["torch", "peft", "transformers", "accelerate"]
 
-[tool.setuptools]
-packages = ["tidal"]
+[tool.setuptools.packages.find]
+include = ["tidal*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

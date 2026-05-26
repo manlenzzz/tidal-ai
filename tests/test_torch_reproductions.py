@@ -2,14 +2,14 @@ import torch
 from torch import nn
 from peft import get_peft_model
 
-from tidal.cap_torch import CAPPackedLinear, apply_cap_compression
-from tidal.qpruner_torch import (
+from tidal.methods.global_rank_sparsity.torch import CAPPackedLinear, apply_cap_compression
+from tidal.methods.qpruner.torch import (
     QuantizedLinear,
     apply_mixed_precision_quantization,
     build_quantization_plan,
     collect_linear_layer_sizes,
 )
-from tidal.rankadaptor import build_lora_config, collect_linear_profiles, search_rank_allocation
+from tidal.methods.rankadaptor import build_lora_config, collect_linear_profiles, search_rank_allocation
 
 
 class TinyBlock(nn.Module):

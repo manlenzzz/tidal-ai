@@ -3,16 +3,16 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>TIDAL | Efficient LLM Toolkit</title>
-    <meta name="description" content="TIDAL provides efficient LLM components for compression, adaptation, serving, and post-training.">
+    <title>TIDAL | Efficient Large-Model Toolkit</title>
+    <meta name="description" content="TIDAL is a method-first toolkit for efficient LLM compression, fine-tuning, quantization, and LoRA serving.">
     <link rel="stylesheet" href="site/styles.css">
   </head>
   <body>
     <header class="topbar">
       <a class="brand" href="#top" aria-label="TIDAL home">TIDAL</a>
       <nav class="nav" aria-label="Primary navigation">
-        <a href="#modules">Modules</a>
         <a href="#methods">Methods</a>
+        <a href="#layout">Layout</a>
         <a href="#team">Team</a>
       </nav>
       <a class="repo-link" href="https://github.com/manlenzzz/tidal-ai">GitHub</a>
@@ -21,9 +21,9 @@
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="kicker">Open-source efficient LLM systems</p>
+          <p class="kicker">Method-first efficient LLM systems</p>
           <h1 id="hero-title">TIDAL</h1>
-          <p class="subtitle">A reusable toolkit for compression, low-rank adaptation, mixed-precision quantization, and multi-tenant LoRA serving.</p>
+          <p class="subtitle">A reusable toolkit for compression, mixed-precision quantization, low-rank adaptation, and multi-tenant LoRA serving.</p>
           <div class="actions" aria-label="Project actions">
             <a class="button primary" href="https://github.com/manlenzzz/tidal-ai">Repository</a>
             <a class="button secondary" href="https://github.com/manlenzzz/tidal-ai#quickstart">Quickstart</a>
@@ -32,37 +32,80 @@
       </section>
 
       <section class="metrics" aria-label="Project status">
-        <div><strong>6</strong><span>Code modules</span></div>
+        <div><strong>6</strong><span>Methods</span></div>
+        <div><strong>3</strong><span>Local implementations</span></div>
         <div><strong>3</strong><span>Upstream integrations</span></div>
-        <div><strong>6</strong><span>Tracked methods</span></div>
-      </section>
-
-      <section id="modules" class="section modules" aria-labelledby="modules-title">
-        <div class="section-heading">
-          <p class="kicker">Modules</p>
-          <h2 id="modules-title">Research methods exposed as Torch-ready APIs</h2>
-        </div>
-        <div class="module-grid">
-          <article class="module-card accent-teal"><span>RankAdaptor</span><h3>Performance-model rank search</h3><p>Fit an MLP performance model, run online rank search, and export PEFT configs.</p></article>
-          <article class="module-card accent-blue"><span>QPruner</span><h3>MI-guided precision search</h3><p>Collect layer-output mutual information and rewrite Linear layers with mixed precision.</p></article>
-          <article class="module-card accent-amber"><span>CAP</span><h3>Global rank and sparsity</h3><p>Run RPCA, optimize one global rank/sparse budget, and pack Linear layers for inference.</p></article>
-          <article class="module-card accent-rose"><span>Serving</span><h3>Segmented LoRA operators</h3><p>Reference SGMV and LoRA SGMV semantics for validating multi-tenant serving kernels.</p></article>
-        </div>
       </section>
 
       <section id="methods" class="section methods" aria-labelledby="methods-title">
         <div class="section-heading">
-          <p class="kicker">Method map</p>
-          <h2 id="methods-title">Efficient training, compression, and serving in one codebase</h2>
+          <p class="kicker">Methods</p>
+          <h2 id="methods-title">Paper algorithms packaged as usable components</h2>
         </div>
-        <div class="method-list" role="table" aria-label="TIDAL methods">
-          <div role="row"><strong role="cell">RankAdaptor</strong><span role="cell">Implemented locally: MLP performance model, online incremental rank search, PEFT LoraConfig export.</span></div>
-          <div role="row"><strong role="cell">QPruner</strong><span role="cell">Implemented locally: calibration MI collection, budgeted bitwidth search, PyTorch quantized Linear backend.</span></div>
-          <div role="row"><strong role="cell">CAP</strong><span role="cell">Implemented locally: RPCA, cross-layer Bernoulli rank/sparse search, PyTorch packed Linear backend.</span></div>
-          <div role="row"><strong role="cell">Dop</strong><span role="cell">Integrated upstream repository for multi-tenant LoRA operator serving.</span></div>
-          <div role="row"><strong role="cell">QR-Adaptor</strong><span role="cell">Integrated upstream repository for linguistic-hierarchy mixed-precision tuning.</span></div>
-          <div role="row"><strong role="cell">AutoQRA</strong><span role="cell">Integrated upstream repository for joint quantization and adapter optimization.</span></div>
+        <div class="method-grid">
+          <article class="method-card accent-teal">
+            <span>RankAdaptor</span>
+            <h3>Hierarchical rank allocation</h3>
+            <p>Five-layer MLP performance model, online incremental rank search, and PEFT rank-pattern export.</p>
+            <code>tidal.methods.rankadaptor</code>
+          </article>
+          <article class="method-card accent-blue">
+            <span>QPruner</span>
+            <h3>Probabilistic precision decisions</h3>
+            <p>Calibration mutual information, memory-constrained bitwidth allocation, and GP refinement.</p>
+            <code>tidal.methods.qpruner</code>
+          </article>
+          <article class="method-card accent-amber">
+            <span>Global Rank And Sparsity</span>
+            <h3>RPCA plus global allocation</h3>
+            <p>ADMM RPCA decomposition, Bernoulli rank/sparse search, and packed Torch Linear layers.</p>
+            <code>tidal.methods.global_rank_sparsity</code>
+          </article>
+          <article class="method-card accent-rose">
+            <span>Dynamic Operator Optimization</span>
+            <h3>Multi-tenant LoRA serving</h3>
+            <p>Upstream CUDA operator code plus CPU SGMV references for correctness checks.</p>
+            <code>external/Dop</code>
+          </article>
+          <article class="method-card accent-indigo">
+            <span>QR-Adaptor</span>
+            <h3>Hierarchy-aware mixed precision</h3>
+            <p>Integrated upstream code for fidelity/plasticity-aligned fine-tuning workflows.</p>
+            <code>external/qr_adapter</code>
+          </article>
+          <article class="method-card accent-slate">
+            <span>AutoQRA</span>
+            <h3>Joint quantization and adapters</h3>
+            <p>Integrated upstream code for mixed-precision quantization and low-rank adapter search.</p>
+            <code>external/autoqra</code>
+          </article>
         </div>
+      </section>
+
+      <section id="layout" class="section layout" aria-labelledby="layout-title">
+        <div class="section-heading">
+          <p class="kicker">Repository layout</p>
+          <h2 id="layout-title">One method, one package, one example directory</h2>
+        </div>
+        <pre class="tree" aria-label="Repository package tree"><code>tidal/methods/
+  rankadaptor/
+    core.py
+    README.md
+  qpruner/
+    core.py
+    torch.py
+    README.md
+  global_rank_sparsity/
+    core.py
+    torch.py
+    README.md
+  dynamic_operator_optimization/
+    reference.py
+    README.md
+examples/
+  rankadaptor/
+  qpruner/
+  global_rank_sparsity/</code></pre>
       </section>
 
       <section id="team" class="section team" aria-labelledby="team-title">
@@ -72,7 +115,7 @@
         </div>
         <div class="team-panel">
           <h3>Changhai Zhou, Yuhua Zhou, Shiyang Zhang</h3>
-          <p>The repository is organized for team-maintained efficient-LLM components across inference, fine-tuning, serving, compression, post-training, and reinforcement learning.</p>
+          <p>The project is organized for team-maintained efficient-LLM components across inference, fine-tuning, serving, compression, post-training, and reinforcement learning.</p>
         </div>
       </section>
     </main>

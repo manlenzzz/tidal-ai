@@ -4,10 +4,10 @@ from torch import nn
 
 torch.set_num_threads(1)
 
-from tidal.cap import optimize_global_rank_sparsity_for_matrices
-from tidal.cap_torch import apply_global_cap_compression
-from tidal.qpruner_torch import collect_linear_mutual_information
-from tidal.rankadaptor import ModuleProfile, online_incremental_rank_search
+from tidal.methods.global_rank_sparsity import optimize_global_rank_sparsity_for_matrices
+from tidal.methods.global_rank_sparsity.torch import apply_global_cap_compression
+from tidal.methods.qpruner.torch import QuantizedLinear, collect_linear_mutual_information, run_qpruner_mixed_precision
+from tidal.methods.rankadaptor import ModuleProfile, online_incremental_rank_search
 
 
 class TinyBlock(nn.Module):
@@ -46,6 +46,31 @@ def test_rankadaptor_online_search_uses_task_evaluations_to_improve_rank_choice(
     assert result.best_score == max(item.score for item in result.observations)
 
 
+def test_rankadaptor_reports_prediction_convergence_when_tolerance_is_met():
+    profiles = [
+        ModuleProfile("layer0", sensitivity=1.0, min_rank=1, max_rank=2, rank_step=1),
+        ModuleProfile("layer1", sensitivity=1.0, min_rank=1, max_rank=2, rank_step=1),
+    ]
+
+    result = online_incremental_rank_search(
+        profiles,
+        budget=4,
+        evaluate_config=lambda config: float(config["layer0"] + config["layer1"]),
+        initial_samples=2,
+        iterations=3,
+        candidate_samples=4,
+        train_epochs=2,
+        convergence_tolerance=100.0,
+        min_iterations=1,
+        seed=2,
+    )
+
+    online_observations = [item for item in result.observations if item.source == "online"]
+    assert result.converged is True
+    assert result.convergence_error is not None
+    assert online_observations[-1].prediction_error == result.convergence_error
+
+
 def test_qpruner_collects_mutual_information_from_pruned_model_outputs():
     torch.manual_seed(0)
     model = TinyBlock()
@@ -55,6 +80,26 @@ def test_qpruner_collects_mutual_information_from_pruned_model_outputs():
 
     assert set(mi) == {"fc1", "fc2"}
     assert all(value >= 0.0 for value in mi.values())
+
+
+def test_qpruner_high_level_runner_matches_algorithm_flow():
+    torch.manual_seed(1)
+    model = TinyBlock()
+    batches = [torch.randn(6, 4), torch.randn(6, 4)]
+
+    result = run_qpruner_mixed_precision(
+        model,
+        batches,
+        candidate_bits=(2, 4),
+        max_average_bits=3.0,
+        bins=4,
+        seed=0,
+    )
+
+    assert set(result.importances) == {"fc1", "fc2"}
+    assert set(result.plan.bitwidths) == {"fc1", "fc2"}
+    assert isinstance(result.model.fc1, QuantizedLinear)
+    assert isinstance(model.fc1, nn.Linear)
 
 
 def test_cap_global_optimizer_allocates_one_budget_across_matrices():

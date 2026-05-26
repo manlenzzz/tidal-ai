@@ -1,11 +1,11 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 
-from tidal.qpruner import bayesian_refine_bitwidths, layer_mutual_information
+from tidal.methods.qpruner import bayesian_refine_bitwidths, layer_mutual_information
 
 rng = np.random.default_rng(0)
 predictions = rng.normal(size=128)

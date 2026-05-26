@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from tidal.rankadaptor import ModuleProfile, export_peft_rank_pattern, fit_log_performance_model, search_rank_allocation
+from tidal.methods.rankadaptor import ModuleProfile, export_peft_rank_pattern, fit_log_performance_model, search_rank_allocation
 
 profiles = [
     ModuleProfile("layers.0.q_proj", sensitivity=0.4, min_rank=2, max_rank=8, rank_step=2),

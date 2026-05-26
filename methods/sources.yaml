@@ -9,7 +9,7 @@ methods:
     text_sha256: 36d4056d37f1e97ba3792fb84343ddf25911c877dbf56ba72e577601fb36e545
     code:
       status: implemented
-      local_path: tidal/rankadaptor.py
+      local_path: tidal/methods/rankadaptor
   - id: qpruner
     title: "Qpruner: Probabilistic decision quantization for structured pruning in large language models"
     source_url: https://arxiv.org/abs/2412.11629
@@ -20,7 +20,7 @@ methods:
     text_sha256: 30b2f9775aa3aeb6d7fc9a09dfc50ee317948b2414c82e1321c8e3ba16da9e8a
     code:
       status: implemented
-      local_path: tidal/qpruner.py
+      local_path: tidal/methods/qpruner
   - id: dynamic-operator-optimization
     title: Dynamic operator optimization for efficient multi-tenant LoRA model serving
     source_url: https://ojs.aaai.org/index.php/AAAI/article/view/34453
@@ -68,4 +68,4 @@ methods:
     text_sha256: b0dcd13fafa6032cd2db7de024a3680c1d6273d02af0ce39b43062c379b85c4d
     code:
       status: implemented
-      local_path: tidal/cap.py
+      local_path: tidal/methods/global_rank_sparsity

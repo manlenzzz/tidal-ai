@@ -1,11 +1,11 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
 
-from tidal.cap import optimize_global_rank_sparsity
+from tidal.methods.global_rank_sparsity import optimize_global_rank_sparsity
 
 low_rank = np.array([
     [1.0, 2.0, 3.0],

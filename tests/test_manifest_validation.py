@@ -24,7 +24,7 @@ methods:
     text_path: methods/text/rankadaptor.txt
     code:
       status: implemented
-      local_path: tidal/rankadaptor.py
+      local_path: tidal/methods/rankadaptor
   - id: qpruner
     title: "Qpruner: Probabilistic decision quantization for structured pruning in large language models"
     source_url: https://arxiv.org/abs/2412.11629
@@ -33,7 +33,7 @@ methods:
     text_path: methods/text/qpruner.txt
     code:
       status: implemented
-      local_path: tidal/qpruner.py
+      local_path: tidal/methods/qpruner
   - id: dynamic-operator-optimization
     title: Dynamic operator optimization for efficient multi-tenant LoRA model serving
     source_url: https://ojs.aaai.org/index.php/AAAI/article/view/34453
@@ -72,7 +72,7 @@ methods:
     text_path: methods/text/global-rank-sparsity.txt
     code:
       status: implemented
-      local_path: tidal/cap.py
+      local_path: tidal/methods/global_rank_sparsity
 """,
     )
 
@@ -100,7 +100,7 @@ methods:
     text_path: methods/text/rankadaptor.txt
     code:
       status: implemented
-      local_path: tidal/rankadaptor.py
+      local_path: tidal/methods/rankadaptor
   - id: rankadaptor
     title: RankAdaptor duplicate
     source_url: https://arxiv.org/abs/2406.15734
@@ -108,7 +108,7 @@ methods:
     text_path: methods/text/rankadaptor.txt
     code:
       status: implemented
-      local_path: tidal/rankadaptor.py
+      local_path: tidal/methods/rankadaptor
 """,
     )
 

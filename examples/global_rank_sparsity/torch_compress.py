@@ -1,12 +1,12 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import torch
 from torch import nn
 
-from tidal.cap_torch import apply_global_cap_compression, summarize_cap_layers
+from tidal.methods.global_rank_sparsity.torch import apply_global_cap_compression, summarize_cap_layers
 
 
 class TinyBlock(nn.Module):

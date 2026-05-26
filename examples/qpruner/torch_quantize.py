@@ -1,16 +1,13 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import torch
 from torch import nn
 
-from tidal.qpruner_torch import (
-    apply_mixed_precision_quantization,
-    build_quantization_plan,
-    collect_linear_mutual_information,
-)
+from tidal.methods.qpruner.torch import run_qpruner_mixed_precision
+
 
 
 class TinyBlock(nn.Module):
@@ -37,16 +34,15 @@ with torch.no_grad():
     model.fc2.weight[0, 0] = 2.0
 
 calibration_batches = [torch.randn(8, 4), torch.randn(8, 4)]
-importance = collect_linear_mutual_information(model, calibration_batches, bins=4)
-plan = build_quantization_plan(
+run = run_qpruner_mixed_precision(
     model,
-    importance,
+    calibration_batches,
     candidate_bits=(2, 4, 8),
     max_average_bits=3.5,
+    bins=4,
 )
-quantized = apply_mixed_precision_quantization(model, plan)
-output = quantized(torch.randn(2, 4))
+output = run.model(torch.randn(2, 4))
 
-print({"importance": {name: round(value, 4) for name, value in importance.items()}})
-print({"bitwidths": plan.bitwidths, "layer_sizes": plan.layer_sizes})
-print({"backend": type(quantized.fc1).__name__, "output_shape": tuple(output.shape)})
+print({"importance": {name: round(value, 4) for name, value in run.importances.items()}})
+print({"bitwidths": run.plan.bitwidths, "layer_sizes": run.plan.layer_sizes})
+print({"backend": type(run.model.fc1).__name__, "output_shape": tuple(output.shape)})

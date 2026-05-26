@@ -1,7 +1,7 @@
 import numpy as np
 
-from tidal.cap import compress_global_rank_sparsity, optimize_global_rank_sparsity, robust_pca
-from tidal.qpruner import (
+from tidal.methods.global_rank_sparsity import compress_global_rank_sparsity, optimize_global_rank_sparsity, robust_pca
+from tidal.methods.qpruner import (
     allocate_bitwidths,
     bayesian_refine_bitwidths,
     config_memory_bits,
@@ -9,7 +9,7 @@ from tidal.qpruner import (
     enumerate_bitwidth_configs,
     quantize_symmetric,
 )
-from tidal.rankadaptor import (
+from tidal.methods.rankadaptor import (
     ModuleProfile,
     allocate_ranks,
     config_cost,
@@ -17,7 +17,7 @@ from tidal.rankadaptor import (
     fit_log_performance_model,
     search_rank_allocation,
 )
-from tidal.sgmv import Segment, lora_sgmv, sgmv
+from tidal.methods.dynamic_operator_optimization.reference import Segment, lora_sgmv, sgmv
 
 
 def test_rankadaptor_allocates_more_rank_to_sensitive_modules():

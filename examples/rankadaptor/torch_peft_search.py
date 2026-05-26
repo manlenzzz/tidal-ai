@@ -1,13 +1,13 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import torch
 from torch import nn
 from peft import get_peft_model
 
-from tidal.rankadaptor import build_lora_config, collect_linear_profiles, online_incremental_rank_search
+from tidal.methods.rankadaptor import build_lora_config, collect_linear_profiles, online_incremental_rank_search
 
 
 class TinyBlock(nn.Module):
