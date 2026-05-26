@@ -65,6 +65,24 @@ python examples/global_rank_sparsity/torch_compress.py
 python examples/dynamic_operator_optimization/sgmv_reference.py
 ```
 
+## Modern Model Targeting
+
+TIDAL includes a shared Hugging Face-style model selector for recent causal LMs with Qwen/Llama-style attention blocks, fused QKV projections, Gemma/Phi/Mistral-style MLPs, and DeepSeek/Mixtral-style MoE experts. Use `target_roles="modern"` to include attention, MLP, and MoE expert linear modules while excluding `lm_head`, embedding projections, and MoE routers by default.
+
+```python
+from tidal.model_support import ModuleRole, list_linear_modules
+from tidal.methods.rankadaptor import collect_linear_profiles
+from tidal.methods.qpruner.torch import collect_linear_layer_sizes
+from tidal.methods.global_rank_sparsity.torch import apply_global_cap_compression
+
+targets = list_linear_modules(model, target_roles="modern")
+profiles = collect_linear_profiles(model, target_roles="modern")
+layer_sizes = collect_linear_layer_sizes(model, target_roles="modern")
+compressed = apply_global_cap_compression(model, total_budget=budget, target_roles="modern")
+```
+
+Advanced users can pass explicit roles such as `{ModuleRole.ATTENTION, ModuleRole.MLP}` or keep using existing `name_filter` callables. When both are supplied, both predicates must match.
+
 ## RankAdaptor
 
 RankAdaptor searches hierarchical LoRA ranks for recovering a pruned model. The local implementation follows the paper workflow: candidate rank configurations, five-layer MLP performance model, online incremental task evaluation with prediction-error convergence, and PEFT export.

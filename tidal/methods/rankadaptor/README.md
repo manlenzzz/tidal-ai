@@ -17,6 +17,14 @@ Primary APIs:
 - `collect_linear_profiles`
 - `build_lora_config`
 
+Modern Hugging Face-style models can be targeted without hand-written layer filters:
+
+```python
+profiles = collect_linear_profiles(model, target_roles="modern", min_rank=1, max_rank=64)
+```
+
+The `modern` selector includes attention, MLP, and MoE expert linear modules while excluding `lm_head`, embedding projections, and MoE routers by default. Existing `name_filter` callables remain supported and are composed with the role selector when both are provided.
+
 Examples:
 
 - `examples/rankadaptor/basic_rank_search.py`

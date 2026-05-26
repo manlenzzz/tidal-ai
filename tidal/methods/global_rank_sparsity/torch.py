@@ -9,6 +9,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from tidal.model_support import compose_name_filter
 from tidal.methods.global_rank_sparsity.core import (
     CAPCompression,
     compress_global_rank_sparsity,
@@ -175,6 +176,8 @@ def apply_global_cap_compression(
     total_budget: int,
     inplace: bool = False,
     name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
     evaluator: Callable[[dict[str, CAPCompression]], float] | None = None,
     max_iter: int = 200,
     policy_steps: int = 80,
@@ -182,10 +185,15 @@ def apply_global_cap_compression(
     seed: int | None = None,
 ) -> nn.Module:
     target = model if inplace else deepcopy(model)
+    selected_name_filter = compose_name_filter(
+        name_filter,
+        target_roles=target_roles,
+        exclude_roles=exclude_target_roles,
+    )
     modules = {
         name: module
         for name, module in target.named_modules()
-        if name and isinstance(module, nn.Linear) and (name_filter is None or name_filter(name))
+        if name and isinstance(module, nn.Linear) and (selected_name_filter is None or selected_name_filter(name))
     }
     if not modules:
         raise ValueError("model does not contain matching torch.nn.Linear modules")

@@ -18,6 +18,18 @@ Primary APIs:
 - `apply_global_cap_compression`
 - `CAPPackedLinear`
 
+Modern Hugging Face-style models can be targeted without hand-written layer filters:
+
+```python
+compressed_model = apply_global_cap_compression(
+    model,
+    total_budget=global_parameter_budget,
+    target_roles="modern",
+)
+```
+
+The `modern` selector includes attention, MLP, and MoE expert linear modules while excluding `lm_head`, embedding projections, and MoE routers by default. Existing `name_filter` callables remain supported and are composed with the role selector when both are provided.
+
 Examples:
 
 - `examples/global_rank_sparsity/cap_policy_search.py`

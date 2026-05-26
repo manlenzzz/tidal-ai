@@ -21,6 +21,19 @@ Primary APIs:
 - `apply_mixed_precision_quantization`
 - `run_qpruner_mixed_precision`
 
+Modern Hugging Face-style models can be targeted without hand-written layer filters:
+
+```python
+run = run_qpruner_mixed_precision(
+    pruned_model,
+    calibration_batches,
+    target_roles="modern",
+    max_average_bits=4.0,
+)
+```
+
+The `modern` selector includes attention, MLP, and MoE expert linear modules while excluding `lm_head`, embedding projections, and MoE routers by default. Existing `name_filter` callables remain supported and are composed with the role selector when both are provided.
+
 Examples:
 
 - `examples/qpruner/mi_bo_quantization.py`

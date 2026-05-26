@@ -6,6 +6,8 @@ from typing import Callable, Iterable, Sequence
 
 import numpy as np
 
+from tidal.model_support import compose_name_filter
+
 RankConfig = dict[str, int]
 PerformanceModel = Callable[[RankConfig], float]
 
@@ -203,6 +205,8 @@ def collect_linear_profiles(
     max_rank: int = 64,
     rank_step: int = 1,
     name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
 ) -> list[ModuleProfile]:
     """Build RankAdaptor profiles from torch.nn.Linear modules.
 
@@ -216,11 +220,16 @@ def collect_linear_profiles(
         raise ImportError("collect_linear_profiles requires PyTorch") from exc
 
     sensitivity_map = sensitivities or {}
+    selected_name_filter = compose_name_filter(
+        name_filter,
+        target_roles=target_roles,
+        exclude_roles=exclude_target_roles,
+    )
     profiles: list[ModuleProfile] = []
     for name, module in model.named_modules():
         if not name or not isinstance(module, nn.Linear):
             continue
-        if name_filter is not None and not name_filter(name):
+        if selected_name_filter is not None and not selected_name_filter(name):
             continue
         sensitivity = float(sensitivity_map.get(name, 1.0))
         profiles.append(

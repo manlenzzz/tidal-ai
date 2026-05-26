@@ -1,3 +1,3 @@
 """TIDAL: method-first components for efficient large-model systems."""
 
-__all__ = ["methods"]
+__all__ = ["methods", "model_support"]

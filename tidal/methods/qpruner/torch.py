@@ -9,6 +9,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from tidal.methods.qpruner.core import BitwidthConfig, allocate_bitwidths, bayesian_refine_bitwidths, layer_mutual_information
+from tidal.model_support import compose_name_filter
 
 __all__ = [
     "QuantizationPlan",
@@ -77,12 +78,23 @@ class QuantizedLinear(nn.Module):
         return F.linear(inputs, weight, bias)
 
 
-def collect_linear_layer_sizes(model: nn.Module, *, name_filter: Callable[[str], bool] | None = None) -> dict[str, int]:
+def collect_linear_layer_sizes(
+    model: nn.Module,
+    *,
+    name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
+) -> dict[str, int]:
+    selected_name_filter = compose_name_filter(
+        name_filter,
+        target_roles=target_roles,
+        exclude_roles=exclude_target_roles,
+    )
     sizes: dict[str, int] = {}
     for name, module in model.named_modules():
         if not name or not isinstance(module, nn.Linear):
             continue
-        if name_filter is not None and not name_filter(name):
+        if selected_name_filter is not None and not selected_name_filter(name):
             continue
         sizes[name] = int(module.weight.numel())
     if not sizes:
@@ -108,9 +120,16 @@ def build_quantization_plan(
     objective: Callable[[BitwidthConfig], float] | None = None,
     refine_trials: int = 0,
     name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
     seed: int | None = None,
 ) -> QuantizationPlan:
-    layer_sizes = collect_linear_layer_sizes(model, name_filter=name_filter)
+    layer_sizes = collect_linear_layer_sizes(
+        model,
+        name_filter=name_filter,
+        target_roles=target_roles,
+        exclude_target_roles=exclude_target_roles,
+    )
     if set(importances) != set(layer_sizes):
         raise ValueError("importances must contain exactly the model linear layers")
     if objective is not None and refine_trials > 0:
@@ -188,6 +207,8 @@ def collect_linear_mutual_information(
     prediction_fn: Callable[[object], torch.Tensor] | None = None,
     bins: int = 16,
     name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
 ) -> dict[str, float]:
     """Run representative data through a model and compute I(layer output; prediction).
 
@@ -195,10 +216,15 @@ def collect_linear_mutual_information(
     prediction Y on representative samples before mixed-precision allocation.
     """
 
+    selected_name_filter = compose_name_filter(
+        name_filter,
+        target_roles=target_roles,
+        exclude_roles=exclude_target_roles,
+    )
     modules = {
         name: module
         for name, module in model.named_modules()
-        if name and isinstance(module, nn.Linear) and (name_filter is None or name_filter(name))
+        if name and isinstance(module, nn.Linear) and (selected_name_filter is None or selected_name_filter(name))
     }
     if not modules:
         raise ValueError("model does not contain matching torch.nn.Linear modules")
@@ -257,6 +283,8 @@ def run_qpruner_mixed_precision(
     prediction_fn: Callable[[object], torch.Tensor] | None = None,
     bins: int = 16,
     name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
     inplace: bool = False,
     seed: int | None = None,
 ) -> QPrunerRun:
@@ -272,6 +300,8 @@ def run_qpruner_mixed_precision(
         prediction_fn=prediction_fn,
         bins=bins,
         name_filter=name_filter,
+        target_roles=target_roles,
+        exclude_target_roles=exclude_target_roles,
     )
     plan = build_quantization_plan(
         model,
@@ -282,6 +312,8 @@ def run_qpruner_mixed_precision(
         objective=objective,
         refine_trials=refine_trials,
         name_filter=name_filter,
+        target_roles=target_roles,
+        exclude_target_roles=exclude_target_roles,
         seed=seed,
     )
     quantized = apply_mixed_precision_quantization(model, plan, inplace=inplace)
