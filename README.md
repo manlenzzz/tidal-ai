@@ -1,92 +1,75 @@
 # TIDAL
 
 <p align="center">
-  <strong>Toolkit for Inference, Deployment, Adaptation, and Learning</strong><br>
-  Open infrastructure for efficient AI systems, from compression and fine-tuning to serving, post-training, and future RL workflows.
+  <strong>Efficient LLM Training, Compression, and Serving Toolkit</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/manlenzzz/tidal-ai"><img alt="Project" src="https://img.shields.io/badge/project-TIDAL-0f766e"></a>
-  <a href="docs/method-zoo.md"><img alt="Methods" src="https://img.shields.io/badge/methods-6%20seed%20papers-2563eb"></a>
-  <a href="docs/roadmap.md"><img alt="Scope" src="https://img.shields.io/badge/scope-compression%20%7C%20adaptation%20%7C%20serving%20%7C%20post--training-7c3aed"></a>
+  <a href="docs/citation.md"><img alt="Papers" src="https://img.shields.io/badge/papers-6%20methods-2563eb"></a>
+  <a href="https://manlenzzz.github.io/tidal-ai/"><img alt="Homepage" src="https://img.shields.io/badge/homepage-online-7c3aed"></a>
 </p>
 
-TIDAL is an open-source toolkit for efficient large-model systems. The project starts from six papers by Changhai Zhou and is organized as a reusable research and engineering base rather than a private paper archive. The long-term goal is to collect practical components for efficient inference, serving, fine-tuning, compression, post-training, and reinforcement learning.
+TIDAL provides efficient LLM system components for pruning, quantization, low-rank adaptation, and multi-tenant LoRA serving. The toolkit is built by our team and packages research code into reusable Python APIs, examples, tests, and integrations with collaborator-maintained repositories.
 
-## What TIDAL Covers
+## Features
 
-| Area | Current focus | Direction |
-| --- | --- | --- |
-| Compression | Pruning, quantization, rank/sparsity optimization | Search spaces, export formats, reproducible compression recipes |
-| Adaptation | LoRA rank allocation, mixed precision, quantization-aware adapters | Adapter allocation, precision policies, PEFT-compatible configs |
-| Serving | Multi-tenant LoRA operator optimization | Benchmarks and deployment paths for adapter-heavy serving |
-| Post-training | Manifest, experiment, and GPU execution discipline | SFT and preference-optimization pipelines |
-| Reinforcement learning | Planned | Efficient RL training and evaluation workflows |
+- Rank allocation for LoRA fine-tuning on pruned LLMs.
+- Mixed-precision quantization utilities for structured pruning pipelines.
+- Global rank and sparsity allocation for low-rank plus sparse compression.
+- CPU reference implementation for segmented gather matrix-vector LoRA serving operators.
+- Integrated upstream codebases for Dynamic Operator Optimization, QR-Adaptor, and AutoQRA.
+- A clean API surface for adding more efficient inference, fine-tuning, serving, post-training, and RL components.
 
-## Seed Method Wave
-
-| Method | Axis | Source status | TIDAL entry |
-| --- | --- | --- | --- |
-| RankAdaptor | Efficient fine-tuning of pruned LLMs | Paper-derived implementation plan | [`reproductions/rankadaptor`](reproductions/rankadaptor/README.md) |
-| QPruner | Structured pruning with probabilistic decision quantization | Paper-derived implementation plan | [`reproductions/qpruner`](reproductions/qpruner/README.md) |
-| Dynamic Operator Optimization | Multi-tenant LoRA serving | Upstream code integrated as submodule | [`reproductions/dynamic-operator-optimization`](reproductions/dynamic-operator-optimization/README.md) |
-| QR-Adaptor | Mixed-precision fine-tuning aligned with linguistic hierarchies | Upstream code integrated as submodule | [`reproductions/qr-adaptor`](reproductions/qr-adaptor/README.md) |
-| AutoQRA | Joint mixed-precision quantization and low-rank adaptation | Upstream code integrated as submodule | [`reproductions/autoqra`](reproductions/autoqra/README.md) |
-| Global Rank/Sparsity Optimization | Joint compression search | Paper-derived implementation plan | [`reproductions/global-rank-sparsity`](reproductions/global-rank-sparsity/README.md) |
-
-The external codebases are tracked under `external/` as Git submodules when available. Full scientific reproduction is claimed only after commands, prerequisites, outputs, comparison targets, and verification evidence are recorded for a method.
-
-## Repository Layout
-
-```text
-papers/sources.yaml        Paper and artifact manifest
-external/                  Integrated upstream code repositories
-reproductions/             Method entries, reproduction plans, and evidence
-tidal/                     Shared TIDAL helpers
-docs/                      Method zoo, roadmap, policies, citations
-site/                      Static project homepage
-experiments/               Local experiment entry points; large outputs ignored
-```
-
-Local PDFs and extracted text live under `papers/pdf/` and `papers/text/`, but they are ignored by Git by default to keep the public repository lightweight.
-
-## Quickstart
-
-Clone with submodules:
+## Installation
 
 ```bash
 git clone --recurse-submodules https://github.com/manlenzzz/tidal-ai.git
 cd tidal-ai
+python -m pip install -e .
 ```
 
-Validate the method manifest:
+For local development without packaging metadata, run commands from the repository root:
+
+```bash
+/opt/venv/bin/python -m pytest
+```
+
+## Quickstart
+
+Validate the paper/source manifest:
 
 ```bash
 /opt/venv/bin/python -m tidal.manifest papers/sources.yaml
 ```
 
-Run the current CPU-only checks:
+Run a CPU example:
 
 ```bash
-/opt/venv/bin/python -m pytest tests/test_manifest_validation.py
+/opt/venv/bin/python examples/rankadaptor_allocate.py
 ```
 
-## Documentation
+## Method Modules
 
-- [`docs/index.md`](docs/index.md): documentation entry point
-- [`docs/method-zoo.md`](docs/method-zoo.md): current method taxonomy and integration status
-- [`docs/reproduction-matrix.md`](docs/reproduction-matrix.md): reproduction readiness matrix
-- [`docs/roadmap.md`](docs/roadmap.md): project scope and staged roadmap
-- [`docs/gpu-execution.md`](docs/gpu-execution.md): GPU execution and cleanup policy
-- [`docs/contributing.md`](docs/contributing.md): contribution workflow
-- [`docs/citation.md`](docs/citation.md): citation guidance
+| Module | Description |
+| --- | --- |
+| `tidal.rankadaptor` | Hierarchical LoRA rank allocation under a budget. |
+| `tidal.qpruner` | Mutual-information driven mixed-precision bit allocation and quantization helpers. |
+| `tidal.cap` | RPCA decomposition and global rank/sparse budget allocation. |
+| `tidal.sgmv` | CPU reference implementation of segmented LoRA SGMV shrink/expand operators. |
 
-## GPU and Artifact Policy
+## Integrated Repositories
 
-Do not run GPU-required jobs locally in this workspace. Training, fine-tuning, CUDA kernel work, large-model inference, and batch scoring must use Mint Ray or an allowed worker from `/vePFS-Mindverse/user/intern/zhouch/config/mint_ray.yaml`. Public job names and namespaces must stay generic.
+| Method | Upstream | Local path |
+| --- | --- | --- |
+| Dynamic Operator Optimization | `harrysyz99/Dop` | `external/Dop` |
+| QR-Adaptor | `harrysyz99/qr_adapter` | `external/qr_adapter` |
+| AutoQRA | `harrysyz99/autoqra` | `external/autoqra` |
 
-Large model weights, datasets, checkpoints, and experiment outputs should stay outside Git and under the durable GPFS workspace paths described in the root `AGENTS.md` policy.
+## Team
 
-## Maintainer
+TIDAL is developed by our team, including Changhai Zhou, Yuhua Zhou, and Shiyang Zhang. The repository is structured so additional team codebases, including Yuhua Zhou's code, can be integrated under the same APIs and examples.
 
-TIDAL is maintained by Changhai Zhou. The project is designed to grow beyond the initial paper wave into a broader toolkit for efficient AI research and deployment.
+## Citation
+
+See [`docs/citation.md`](docs/citation.md) for toolkit and method citation guidance.

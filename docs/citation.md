@@ -5,15 +5,15 @@ If TIDAL helps your research or engineering work, cite the toolkit and the speci
 ## Toolkit
 
 ```bibtex
-@misc{zhou2026tidal,
-  title = {TIDAL: Toolkit for Inference, Deployment, Adaptation, and Learning},
-  author = {Changhai Zhou},
+@misc{tidal2026,
+  title = {TIDAL: Efficient LLM Training, Compression, and Serving Toolkit},
+  author = {Changhai Zhou and Yuhua Zhou and Shiyang Zhang},
   year = {2026},
   url = {https://github.com/manlenzzz/tidal-ai}
 }
 ```
 
-## Seed Papers
+## Method Papers
 
 - RankAdaptor: Hierarchical Rank Allocation for Efficient Fine-Tuning Pruned LLMs via Performance Model
 - QPruner: Probabilistic Decision Quantization for Structured Pruning in Large Language Models

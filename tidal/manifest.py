@@ -69,13 +69,17 @@ def _validate_paper_entry(paper_id: str, paper: dict[str, Any]) -> None:
         raise ManifestError(f"{paper_id} code must be a mapping")
 
     status = code.get("status")
-    if status not in {"external", "paper-derived"}:
-        raise ManifestError(f"{paper_id} code.status must be external or paper-derived")
+    if status not in {"external", "implemented"}:
+        raise ManifestError(f"{paper_id} code.status must be external or implemented")
 
     if status == "external":
-        for field in ("repo_url", "local_path"):
-            if not code.get(field):
-                raise ManifestError(f"{paper_id} external code missing {field}")
+        required_fields = ("repo_url", "local_path")
+    else:
+        required_fields = ("local_path",)
+
+    for field in required_fields:
+        if not code.get(field):
+            raise ManifestError(f"{paper_id} code missing {field}")
 
 
 def main() -> int:

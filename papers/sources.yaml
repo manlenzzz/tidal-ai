@@ -8,8 +8,8 @@ papers:
     text_path: papers/text/rankadaptor.txt
     text_sha256: 36d4056d37f1e97ba3792fb84343ddf25911c877dbf56ba72e577601fb36e545
     code:
-      status: paper-derived
-    reproduction_path: reproductions/rankadaptor
+      status: implemented
+      local_path: tidal/rankadaptor.py
   - id: qpruner
     title: "Qpruner: Probabilistic decision quantization for structured pruning in large language models"
     source_url: https://arxiv.org/abs/2412.11629
@@ -19,8 +19,8 @@ papers:
     text_path: papers/text/qpruner.txt
     text_sha256: 30b2f9775aa3aeb6d7fc9a09dfc50ee317948b2414c82e1321c8e3ba16da9e8a
     code:
-      status: paper-derived
-    reproduction_path: reproductions/qpruner
+      status: implemented
+      local_path: tidal/qpruner.py
   - id: dynamic-operator-optimization
     title: Dynamic operator optimization for efficient multi-tenant LoRA model serving
     source_url: https://ojs.aaai.org/index.php/AAAI/article/view/34453
@@ -33,7 +33,6 @@ papers:
       status: external
       repo_url: https://github.com/harrysyz99/Dop
       local_path: external/Dop
-    reproduction_path: reproductions/dynamic-operator-optimization
   - id: qr-adaptor
     title: "Balancing fidelity and plasticity: Aligning mixed-precision fine-tuning with linguistic hierarchies"
     source_url: https://arxiv.org/abs/2505.03802
@@ -46,7 +45,6 @@ papers:
       status: external
       repo_url: https://github.com/harrysyz99/qr_adapter
       local_path: external/qr_adapter
-    reproduction_path: reproductions/qr-adaptor
   - id: autoqra
     title: "AutoQRA: Joint Optimization of Mixed-Precision Quantization and Low-rank Adapters for Efficient LLM Fine-Tuning"
     source_url: https://arxiv.org/abs/2602.22268
@@ -59,7 +57,6 @@ papers:
       status: external
       repo_url: https://github.com/harrysyz99/autoqra
       local_path: external/autoqra
-    reproduction_path: reproductions/autoqra
   - id: global-rank-sparsity
     title: Large Language Model Compression with Global Rank and Sparsity Optimization
     source_url: https://arxiv.org/abs/2505.03801
@@ -70,5 +67,5 @@ papers:
     text_path: papers/text/global-rank-sparsity.txt
     text_sha256: b0dcd13fafa6032cd2db7de024a3680c1d6273d02af0ce39b43062c379b85c4d
     code:
-      status: paper-derived
-    reproduction_path: reproductions/global-rank-sparsity
+      status: implemented
+      local_path: tidal/cap.py
