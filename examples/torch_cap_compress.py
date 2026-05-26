@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch
 from torch import nn
 
-from tidal.cap_torch import apply_cap_compression, summarize_cap_layers
+from tidal.cap_torch import apply_global_cap_compression, summarize_cap_layers
 
 
 class TinyBlock(nn.Module):
@@ -22,11 +22,11 @@ class TinyBlock(nn.Module):
 
 torch.manual_seed(0)
 model = TinyBlock()
-compressed = apply_cap_compression(
+compressed = apply_global_cap_compression(
     model,
-    {"fc1": 9, "fc2": 7},
+    total_budget=16,
     max_iter=60,
-    policy_steps=24,
+    policy_steps=12,
     samples_per_step=4,
     seed=0,
 )

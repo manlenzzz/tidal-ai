@@ -14,9 +14,9 @@ TIDAL is an open-source toolkit for efficient large-model systems. It provides r
 
 ## Features
 
-- RankAdaptor-style performance-model rank search with direct PEFT `LoraConfig` export.
-- QPruner-style mutual-information initialization, budgeted mixed-precision search, and PyTorch `nn.Linear` replacement.
-- CAP-style robust PCA, global rank/sparsity policy search, and PyTorch low-rank+sparse packed linear layers.
+- RankAdaptor-style MLP performance model, online incremental rank search, and direct PEFT `LoraConfig` export.
+- QPruner-style layer-output mutual information collection, budgeted mixed-precision search, and PyTorch `nn.Linear` replacement.
+- CAP-style RPCA decomposition, Bernoulli global rank/sparsity allocation, and PyTorch low-rank+sparse packed linear layers.
 - CPU reference implementation for segmented gather matrix-vector LoRA serving operators.
 - Integrated upstream codebases for Dynamic Operator Optimization, QR-Adaptor, and AutoQRA.
 - Tests and examples that exercise both algorithm kernels and Torch/PEFT integration paths.
@@ -63,43 +63,48 @@ python examples/torch_cap_compress.py
 
 ## Torch/PEFT APIs
 
-RankAdaptor can profile `torch.nn.Linear` modules and create a PEFT config with per-layer ranks:
+RankAdaptor can profile `torch.nn.Linear` modules, run an online evaluator loop, and create a PEFT config with per-layer ranks:
 
 ```python
 from peft import get_peft_model
-from tidal.rankadaptor import build_lora_config, collect_linear_profiles, search_rank_allocation
+from tidal.rankadaptor import build_lora_config, collect_linear_profiles, online_incremental_rank_search
 
 profiles = collect_linear_profiles(model, sensitivities=sensitivity, min_rank=1, max_rank=64)
-allocation = search_rank_allocation(profiles, budget=adapter_budget)
-peft_model = get_peft_model(model, build_lora_config(allocation.config))
+search = online_incremental_rank_search(profiles, budget=adapter_budget, evaluate_config=finetune_and_eval)
+peft_model = get_peft_model(model, build_lora_config(search.best_config))
 ```
 
-QPruner can allocate mixed bitwidths and replace selected linear layers with a small symmetric n-bit backend:
+QPruner can collect mutual information on representative batches, allocate mixed bitwidths, and replace selected linear layers with a small symmetric n-bit backend:
 
 ```python
-from tidal.qpruner_torch import apply_mixed_precision_quantization, build_quantization_plan
+from tidal.qpruner_torch import (
+    apply_mixed_precision_quantization,
+    build_quantization_plan,
+    collect_linear_mutual_information,
+)
 
-plan = build_quantization_plan(model, layer_importance, candidate_bits=(2, 4, 8), max_average_bits=4.0)
-quantized_model = apply_mixed_precision_quantization(model, plan)
+importance = collect_linear_mutual_information(pruned_model, calibration_batches)
+plan = build_quantization_plan(pruned_model, importance, candidate_bits=(2, 4, 8), max_average_bits=4.0)
+quantized_model = apply_mixed_precision_quantization(pruned_model, plan)
 ```
 
-CAP can replace linear layers with low-rank factors plus sparse residuals under per-layer budgets:
+CAP can allocate one global rank/sparsity budget across linear layers, then rewrite them as low-rank factors plus sparse residuals:
 
 ```python
-from tidal.cap_torch import apply_cap_compression
+from tidal.cap_torch import apply_global_cap_compression
 
-compressed_model = apply_cap_compression(model, {"layers.0.mlp.down_proj": 4096})
+compressed_model = apply_global_cap_compression(model, total_budget=global_parameter_budget)
 ```
 
 ## Method Modules
 
 | Module | Description |
 | --- | --- |
-| `tidal.rankadaptor` | Log-rank performance surrogate fitting, coordinate rank search, Torch linear profiling, and PEFT config export. |
+| `tidal.rankadaptor` | Log-rank and MLP performance models, online incremental rank search, Torch linear profiling, and PEFT config export. |
 | `tidal.qpruner` | Mutual-information scoring, feasible bitwidth enumeration, and GP expected-improvement refinement. |
-| `tidal.qpruner_torch` | PyTorch model rewrite backend for QPruner mixed-precision decisions. |
-| `tidal.cap` | RPCA decomposition, greedy compression, and Bernoulli policy search for global rank/sparse budgets. |
-| `tidal.cap_torch` | PyTorch packed linear backend for CAP low-rank+sparse compression. |
+| `tidal.qpruner_torch` | PyTorch mutual-information collection and model rewrite backend for QPruner mixed-precision decisions. |
+| `tidal.cap` | RPCA decomposition, greedy compression, and Bernoulli policy search for single-matrix and cross-matrix global rank/sparse budgets. |
+| `tidal.cap_torch` | PyTorch packed linear backend for per-layer and global CAP low-rank+sparse compression. |
 | `tidal.sgmv` | CPU reference implementation of segmented LoRA SGMV shrink/expand operators. |
 
 ## Integrated Repositories

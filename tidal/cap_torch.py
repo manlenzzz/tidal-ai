@@ -2,19 +2,25 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Callable, Mapping
 
 import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-from tidal.cap import CAPCompression, compress_global_rank_sparsity, optimize_global_rank_sparsity
+from tidal.cap import (
+    CAPCompression,
+    compress_global_rank_sparsity,
+    optimize_global_rank_sparsity,
+    optimize_global_rank_sparsity_for_matrices,
+)
 
 __all__ = [
     "CAPLayerResult",
     "CAPPackedLinear",
     "apply_cap_compression",
+    "apply_global_cap_compression",
     "summarize_cap_layers",
 ]
 
@@ -79,6 +85,10 @@ class CAPPackedLinear(nn.Module):
             ).compression
         else:
             compression = compress_global_rank_sparsity(weight, budget=budget, max_iter=max_iter)
+        return cls.from_compression(module, compression)
+
+    @classmethod
+    def from_compression(cls, module: nn.Linear, compression: CAPCompression) -> "CAPPackedLinear":
         left, right = _factorize_low_rank(compression)
         sparse = torch.from_numpy(compression.sparse).to(dtype=module.weight.dtype, device=module.weight.device)
         return cls(
@@ -155,6 +165,41 @@ def apply_cap_compression(
             seed=seed,
         )
         _set_submodule(target, name, packed)
+    return target
+
+
+
+def apply_global_cap_compression(
+    model: nn.Module,
+    *,
+    total_budget: int,
+    inplace: bool = False,
+    name_filter: Callable[[str], bool] | None = None,
+    max_iter: int = 200,
+    policy_steps: int = 80,
+    samples_per_step: int = 8,
+    seed: int | None = None,
+) -> nn.Module:
+    target = model if inplace else deepcopy(model)
+    modules = {
+        name: module
+        for name, module in target.named_modules()
+        if name and isinstance(module, nn.Linear) and (name_filter is None or name_filter(name))
+    }
+    if not modules:
+        raise ValueError("model does not contain matching torch.nn.Linear modules")
+    matrices = {name: module.weight.detach().cpu().to(torch.float32).numpy() for name, module in modules.items()}
+    result = optimize_global_rank_sparsity_for_matrices(
+        matrices,
+        total_budget=total_budget,
+        max_iter=max_iter,
+        policy_steps=policy_steps,
+        samples_per_step=samples_per_step,
+        seed=seed,
+    )
+    for name, compression in result.compressions.items():
+        _set_submodule(target, name, CAPPackedLinear.from_compression(modules[name], compression))
+    target._cap_global_result = result
     return target
 
 

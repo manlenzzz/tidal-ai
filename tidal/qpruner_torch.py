@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from tidal.qpruner import BitwidthConfig, allocate_bitwidths, bayesian_refine_bitwidths
+from tidal.qpruner import BitwidthConfig, allocate_bitwidths, bayesian_refine_bitwidths, layer_mutual_information
 
 __all__ = [
     "QuantizationPlan",
@@ -16,6 +16,7 @@ __all__ = [
     "collect_linear_layer_sizes",
     "build_quantization_plan",
     "apply_mixed_precision_quantization",
+    "collect_linear_mutual_information",
 ]
 
 
@@ -142,3 +143,93 @@ def apply_mixed_precision_quantization(
             raise ValueError(f"{name} is not a torch.nn.Linear module")
         _set_submodule(target, name, QuantizedLinear.from_linear(module, bits=int(bits)))
     return target
+
+
+
+def _run_model(model: nn.Module, batch: object) -> object:
+    if isinstance(batch, Mapping):
+        return model(**batch)
+    if isinstance(batch, tuple):
+        return model(*batch)
+    if isinstance(batch, list):
+        return model(*batch)
+    return model(batch)
+
+
+def _default_predictions(output: object) -> torch.Tensor:
+    if hasattr(output, "logits"):
+        output = output.logits
+    if isinstance(output, (tuple, list)):
+        output = output[0]
+    if not torch.is_tensor(output):
+        raise TypeError("model output must be a Tensor, tuple/list of Tensor, or object with logits")
+    tensor = output.detach()
+    if tensor.ndim == 0:
+        return tensor.reshape(1).cpu()
+    if tensor.ndim == 1:
+        return tensor.cpu()
+    return torch.argmax(tensor.reshape(tensor.shape[0], -1), dim=1).cpu()
+
+
+def collect_linear_mutual_information(
+    model: nn.Module,
+    batches: Sequence[object],
+    *,
+    prediction_fn: Callable[[object], torch.Tensor] | None = None,
+    bins: int = 16,
+    name_filter: Callable[[str], bool] | None = None,
+) -> dict[str, float]:
+    """Run representative data through a model and compute I(layer output; prediction).
+
+    This is the QPruner paper step that records each layer output X and the final
+    prediction Y on representative samples before mixed-precision allocation.
+    """
+
+    modules = {
+        name: module
+        for name, module in model.named_modules()
+        if name and isinstance(module, nn.Linear) and (name_filter is None or name_filter(name))
+    }
+    if not modules:
+        raise ValueError("model does not contain matching torch.nn.Linear modules")
+    if not batches:
+        raise ValueError("batches must not be empty")
+
+    layer_outputs: dict[str, list[torch.Tensor]] = {name: [] for name in modules}
+    handles = []
+
+    def make_hook(name: str):
+        def hook(_module: nn.Module, _inputs: tuple[object, ...], output: object) -> None:
+            value = output[0] if isinstance(output, (tuple, list)) else output
+            if not torch.is_tensor(value):
+                raise TypeError(f"{name} output is not a Tensor")
+            layer_outputs[name].append(value.detach().cpu())
+
+        return hook
+
+    for name, module in modules.items():
+        handles.append(module.register_forward_hook(make_hook(name)))
+
+    was_training = model.training
+    predictions: list[torch.Tensor] = []
+    try:
+        model.eval()
+        with torch.no_grad():
+            for batch in batches:
+                output = _run_model(model, batch)
+                pred = (prediction_fn or _default_predictions)(output)
+                if not torch.is_tensor(pred):
+                    pred = torch.as_tensor(pred)
+                predictions.append(pred.detach().cpu().reshape(-1))
+    finally:
+        for handle in handles:
+            handle.remove()
+        model.train(was_training)
+
+    y = torch.cat(predictions, dim=0).numpy()
+    arrays: dict[str, object] = {}
+    for name, chunks in layer_outputs.items():
+        if not chunks:
+            raise ValueError(f"no outputs were captured for {name}")
+        arrays[name] = torch.cat([chunk.reshape(chunk.shape[0], -1) for chunk in chunks], dim=0).numpy()
+    return layer_mutual_information(arrays, y, bins=bins)

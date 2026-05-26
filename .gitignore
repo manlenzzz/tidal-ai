@@ -1,4 +1,6 @@
 # Local paper artifacts are downloaded for this workspace but are not committed by default.
+methods/pdf/*.pdf
+methods/text/*.txt
 papers/pdf/*.pdf
 papers/text/*.txt
 

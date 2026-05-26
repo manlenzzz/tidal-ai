@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 import numpy as np
 
@@ -265,3 +266,154 @@ def optimize_global_rank_sparsity(
     final_compression = _compression_from_selection(rpca, best_selection)
     final_reward = -_relative_error(matrix_array, final_compression)
     return CAPSearchResult(final_compression, max(best_reward, final_reward), tuple(history))
+
+
+@dataclass(frozen=True)
+class CAPGlobalPolicyStep:
+    step: int
+    loss: float
+    parameter_count: int
+
+
+@dataclass(frozen=True)
+class CAPGlobalSearchResult:
+    compressions: dict[str, CAPCompression]
+    parameter_count: int
+    best_loss: float
+    history: tuple[CAPGlobalPolicyStep, ...]
+
+
+def _compressions_from_global_selection(
+    rpcas: dict[str, RPCAResult],
+    offsets: dict[str, tuple[int, int]],
+    selection: np.ndarray,
+) -> dict[str, CAPCompression]:
+    return {
+        name: _compression_from_selection(rpca, selection[start:end])
+        for name, rpca in rpcas.items()
+        for start, end in [offsets[name]]
+    }
+
+
+def _global_default_loss(matrices: dict[str, np.ndarray], compressions: dict[str, CAPCompression]) -> float:
+    return float(np.mean([_relative_error(matrices[name], compression) for name, compression in compressions.items()]))
+
+
+def _project_probabilities(probs: np.ndarray, costs: np.ndarray, budget: int) -> np.ndarray:
+    clipped = np.clip(probs, 1e-3, 1.0 - 1e-3)
+    expected = float(np.sum(clipped * costs))
+    if expected > budget:
+        clipped = clipped * (float(budget) / (expected + 1e-12))
+    return np.clip(clipped, 1e-3, 1.0 - 1e-3)
+
+
+def _select_by_probabilities(probs: np.ndarray, costs: np.ndarray, budget: int) -> np.ndarray:
+    selection = np.zeros(len(probs), dtype=bool)
+    used = 0
+    for index in np.argsort(-probs):
+        cost = int(costs[index])
+        if used + cost > budget:
+            continue
+        selection[index] = True
+        used += cost
+    return selection
+
+
+def optimize_global_rank_sparsity_for_matrices(
+    matrices: dict[str, np.ndarray],
+    *,
+    total_budget: int,
+    evaluator: Callable[[dict[str, CAPCompression]], float] | None = None,
+    lam: float | None = None,
+    max_iter: int = 200,
+    policy_steps: int = 120,
+    samples_per_step: int = 8,
+    learning_rate: float = 0.1,
+    budget_penalty: float = 2.0,
+    seed: int | None = None,
+) -> CAPGlobalSearchResult:
+    """CAP Stage 2 global Bernoulli allocation across multiple matrices.
+
+    ``evaluator`` receives a mapping from layer name to CAPCompression and returns
+    a calibration loss. If omitted, the optimizer uses average reconstruction error.
+    """
+
+    if not matrices:
+        raise ValueError("matrices must not be empty")
+    if total_budget <= 0:
+        raise ValueError("total_budget must be positive")
+    if policy_steps <= 0 or samples_per_step <= 0:
+        raise ValueError("policy_steps and samples_per_step must be positive")
+    if learning_rate <= 0:
+        raise ValueError("learning_rate must be positive")
+
+    matrix_arrays = {name: np.asarray(matrix, dtype=np.float64) for name, matrix in matrices.items()}
+    rpcas = {name: robust_pca(matrix, lam=lam, max_iter=max_iter) for name, matrix in matrix_arrays.items()}
+    offsets: dict[str, tuple[int, int]] = {}
+    values_list: list[np.ndarray] = []
+    costs_list: list[np.ndarray] = []
+    cursor = 0
+    for name, rpca in rpcas.items():
+        _, _, values, costs, _ = _candidate_table(rpca)
+        values_list.append(values)
+        costs_list.append(costs)
+        offsets[name] = (cursor, cursor + len(values))
+        cursor += len(values)
+
+    if cursor == 0:
+        selection = np.zeros(0, dtype=bool)
+        compressions = _compressions_from_global_selection(rpcas, offsets, selection)
+        return CAPGlobalSearchResult(compressions, 0, _global_default_loss(matrix_arrays, compressions), tuple())
+
+    values = np.concatenate(values_list)
+    costs = np.concatenate(costs_list).astype(np.float64)
+    rng = np.random.default_rng(seed)
+    probs = values / (float(values.max()) + 1e-12)
+    probs = _project_probabilities(np.clip(probs, 0.05, 0.95), costs, total_budget)
+    score_fn = evaluator or (lambda comps: _global_default_loss(matrix_arrays, comps))
+
+    initial_selection = _select_by_probabilities(probs, costs, total_budget)
+    initial_compressions = _compressions_from_global_selection(rpcas, offsets, initial_selection)
+    best_selection = initial_selection.copy()
+    best_loss = float(score_fn(initial_compressions))
+    baseline = best_loss
+    history: list[CAPGlobalPolicyStep] = []
+
+    for step in range(1, policy_steps + 1):
+        grad = np.zeros_like(probs)
+        step_best_loss = float("inf")
+        step_best_cost = 0
+        for _ in range(samples_per_step):
+            sample = rng.random(len(probs)) < probs
+            cost = int(np.sum(costs * sample))
+            compressions = _compressions_from_global_selection(rpcas, offsets, sample)
+            loss = float(score_fn(compressions))
+            overflow = max(0, cost - total_budget) / max(float(total_budget), 1.0)
+            penalized_loss = loss + budget_penalty * overflow
+            grad += (penalized_loss - baseline) * (sample.astype(np.float64) - probs) / (probs * (1.0 - probs) + 1e-8)
+            if cost <= total_budget and loss < best_loss:
+                best_loss = loss
+                best_selection = sample.copy()
+            if penalized_loss < step_best_loss:
+                step_best_loss = penalized_loss
+                step_best_cost = cost
+        baseline = 0.9 * baseline + 0.1 * step_best_loss
+        probs = _project_probabilities(probs - learning_rate * grad / float(samples_per_step), costs, total_budget)
+        history.append(CAPGlobalPolicyStep(step, float(step_best_loss), int(step_best_cost)))
+
+    deterministic = _select_by_probabilities(probs, costs, total_budget)
+    deterministic_compressions = _compressions_from_global_selection(rpcas, offsets, deterministic)
+    deterministic_loss = float(score_fn(deterministic_compressions))
+    if deterministic_loss <= best_loss:
+        final_selection = deterministic
+        final_loss = deterministic_loss
+    else:
+        final_selection = best_selection
+        final_loss = best_loss
+    final_compressions = _compressions_from_global_selection(rpcas, offsets, final_selection)
+    return CAPGlobalSearchResult(
+        final_compressions,
+        int(np.sum(costs * final_selection)),
+        float(final_loss),
+        tuple(history),
+    )
