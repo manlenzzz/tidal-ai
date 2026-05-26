@@ -6,11 +6,11 @@
 
 <p align="center">
   <a href="https://github.com/manlenzzz/tidal-ai"><img alt="Project" src="https://img.shields.io/badge/project-TIDAL-0f766e"></a>
-  <a href="docs/citation.md"><img alt="Papers" src="https://img.shields.io/badge/papers-6%20methods-2563eb"></a>
+  <a href="docs/citation.md"><img alt="Methods" src="https://img.shields.io/badge/methods-6-2563eb"></a>
   <a href="https://manlenzzz.github.io/tidal-ai/"><img alt="Homepage" src="https://img.shields.io/badge/homepage-online-7c3aed"></a>
 </p>
 
-TIDAL provides efficient LLM system components for pruning, quantization, low-rank adaptation, and multi-tenant LoRA serving. The toolkit is built by our team and packages research code into reusable Python APIs, examples, tests, and integrations with collaborator-maintained repositories.
+TIDAL is an open-source toolkit for efficient large-model systems. It provides practical components for pruning, quantization, low-rank adaptation, and multi-tenant LoRA serving, with research methods exposed as reusable Python APIs, examples, tests, and integrations with upstream repositories.
 
 ## Features
 
@@ -37,10 +37,10 @@ For local development without packaging metadata, run commands from the reposito
 
 ## Quickstart
 
-Validate the paper/source manifest:
+Validate the method/source manifest:
 
 ```bash
-/opt/venv/bin/python -m tidal.manifest papers/sources.yaml
+/opt/venv/bin/python -m tidal.manifest methods/sources.yaml
 ```
 
 Run a CPU example:
@@ -68,7 +68,7 @@ Run a CPU example:
 
 ## Team
 
-TIDAL is developed by our team, including Changhai Zhou, Yuhua Zhou, and Shiyang Zhang. The repository is structured so additional team codebases, including Yuhua Zhou's code, can be integrated under the same APIs and examples.
+TIDAL is developed by our team: Changhai Zhou, Yuhua Zhou, and Shiyang Zhang. The repository is structured to host team-maintained efficient-LLM components behind consistent APIs and examples.
 
 ## Citation
 

@@ -13,7 +13,7 @@ TIDAL contributions should add working code, tests, examples, or maintained inte
 ## Development Checks
 
 ```bash
-/opt/venv/bin/python -m tidal.manifest papers/sources.yaml
+/opt/venv/bin/python -m tidal.manifest methods/sources.yaml
 /opt/venv/bin/python -m pytest
 ```
 

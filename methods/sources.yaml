@@ -1,11 +1,11 @@
-papers:
+methods:
   - id: rankadaptor
     title: "RankAdaptor: Hierarchical Rank Allocation for Efficient Fine-Tuning Pruned LLMs via Performance Model"
     source_url: https://arxiv.org/abs/2406.15734
     pdf_url: https://arxiv.org/pdf/2406.15734
-    pdf_path: papers/pdf/rankadaptor.pdf
+    pdf_path: methods/pdf/rankadaptor.pdf
     pdf_sha256: ceb08a5b0ef0c940093bad641a4938b93e74da7f8592c14b09adef7f9c37a824
-    text_path: papers/text/rankadaptor.txt
+    text_path: methods/text/rankadaptor.txt
     text_sha256: 36d4056d37f1e97ba3792fb84343ddf25911c877dbf56ba72e577601fb36e545
     code:
       status: implemented
@@ -14,9 +14,9 @@ papers:
     title: "Qpruner: Probabilistic decision quantization for structured pruning in large language models"
     source_url: https://arxiv.org/abs/2412.11629
     pdf_url: https://arxiv.org/pdf/2412.11629
-    pdf_path: papers/pdf/qpruner.pdf
+    pdf_path: methods/pdf/qpruner.pdf
     pdf_sha256: 013dd49aeb6f56b3a5c3faa9804928fdf7985ac73df0f6d807ce14e78380743f
-    text_path: papers/text/qpruner.txt
+    text_path: methods/text/qpruner.txt
     text_sha256: 30b2f9775aa3aeb6d7fc9a09dfc50ee317948b2414c82e1321c8e3ba16da9e8a
     code:
       status: implemented
@@ -25,9 +25,9 @@ papers:
     title: Dynamic operator optimization for efficient multi-tenant LoRA model serving
     source_url: https://ojs.aaai.org/index.php/AAAI/article/view/34453
     pdf_url: https://ojs.aaai.org/index.php/AAAI/article/view/34453/36608
-    pdf_path: papers/pdf/dynamic-operator-optimization.pdf
+    pdf_path: methods/pdf/dynamic-operator-optimization.pdf
     pdf_sha256: 5fba5f4349d6a810a291b65e498b8d106ab62c722ffe52ed4759f6561d943b07
-    text_path: papers/text/dynamic-operator-optimization.txt
+    text_path: methods/text/dynamic-operator-optimization.txt
     text_sha256: 66cc994a6ee6314d1c8b69023380138dbc308a4d565b70fa8ea25c2126420f44
     code:
       status: external
@@ -37,9 +37,9 @@ papers:
     title: "Balancing fidelity and plasticity: Aligning mixed-precision fine-tuning with linguistic hierarchies"
     source_url: https://arxiv.org/abs/2505.03802
     pdf_url: https://arxiv.org/pdf/2505.03802
-    pdf_path: papers/pdf/qr-adaptor.pdf
+    pdf_path: methods/pdf/qr-adaptor.pdf
     pdf_sha256: c7c15f564229ac67017f557e2e338bc095c5cf39559112942a1866a196fec58d
-    text_path: papers/text/qr-adaptor.txt
+    text_path: methods/text/qr-adaptor.txt
     text_sha256: b10145c4374bd4127df44ac5e69c17f9b8b43e89973b69414c8cd8387f0ab0f8
     code:
       status: external
@@ -49,9 +49,9 @@ papers:
     title: "AutoQRA: Joint Optimization of Mixed-Precision Quantization and Low-rank Adapters for Efficient LLM Fine-Tuning"
     source_url: https://arxiv.org/abs/2602.22268
     pdf_url: https://arxiv.org/pdf/2602.22268
-    pdf_path: papers/pdf/autoqra.pdf
+    pdf_path: methods/pdf/autoqra.pdf
     pdf_sha256: a5c745b337e6e0cacdd8882843e62af14b270b2e113b6e7e95bd8bf2e264b764
-    text_path: papers/text/autoqra.txt
+    text_path: methods/text/autoqra.txt
     text_sha256: bb71be3d99f75e4e504d84f062ef561219e49d8c3209c8ead68d920aa92ca606
     code:
       status: external
@@ -62,9 +62,9 @@ papers:
     source_url: https://arxiv.org/abs/2505.03801
     pdf_url: https://arxiv.org/pdf/2505.03801
     openreview_url: https://openreview.net/forum?id=ZaPmQ0NHs4
-    pdf_path: papers/pdf/global-rank-sparsity.pdf
+    pdf_path: methods/pdf/global-rank-sparsity.pdf
     pdf_sha256: 5a16506c02556b69eae5ed8a074fc74a272edc722190015d9df9b2b64f5e9d1b
-    text_path: papers/text/global-rank-sparsity.txt
+    text_path: methods/text/global-rank-sparsity.txt
     text_sha256: b0dcd13fafa6032cd2db7de024a3680c1d6273d02af0ce39b43062c379b85c4d
     code:
       status: implemented

@@ -6,7 +6,7 @@ from typing import Any
 import yaml
 
 
-REQUIRED_PAPER_IDS = [
+REQUIRED_METHOD_IDS = [
     "rankadaptor",
     "qpruner",
     "dynamic-operator-optimization",
@@ -17,7 +17,7 @@ REQUIRED_PAPER_IDS = [
 
 
 class ManifestError(ValueError):
-    """Raised when the paper source manifest is incomplete or inconsistent."""
+    """Raised when the method source manifest is incomplete or inconsistent."""
 
 
 def load_manifest(path: str | Path) -> dict[str, Any]:
@@ -29,48 +29,48 @@ def load_manifest(path: str | Path) -> dict[str, Any]:
 
 
 def validate_manifest(manifest: dict[str, Any]) -> list[str]:
-    papers = manifest.get("papers")
-    if not isinstance(papers, list):
-        raise ManifestError("manifest must contain a papers list")
+    methods = manifest.get("methods")
+    if not isinstance(methods, list):
+        raise ManifestError("manifest must contain a methods list")
 
     ids: list[str] = []
-    for index, paper in enumerate(papers):
-        if not isinstance(paper, dict):
-            raise ManifestError(f"paper entry {index} must be a mapping")
-        paper_id = paper.get("id")
-        if not isinstance(paper_id, str) or not paper_id:
-            raise ManifestError(f"paper entry {index} missing id")
-        ids.append(paper_id)
-        _validate_paper_entry(paper_id, paper)
+    for index, method in enumerate(methods):
+        if not isinstance(method, dict):
+            raise ManifestError(f"method entry {index} must be a mapping")
+        method_id = method.get("id")
+        if not isinstance(method_id, str) or not method_id:
+            raise ManifestError(f"method entry {index} missing id")
+        ids.append(method_id)
+        _validate_method_entry(method_id, method)
 
-    duplicates = sorted({paper_id for paper_id in ids if ids.count(paper_id) > 1})
+    duplicates = sorted({method_id for method_id in ids if ids.count(method_id) > 1})
     if duplicates:
-        raise ManifestError(f"duplicate paper ids: {', '.join(duplicates)}")
+        raise ManifestError(f"duplicate method ids: {', '.join(duplicates)}")
 
-    expected = set(REQUIRED_PAPER_IDS)
+    expected = set(REQUIRED_METHOD_IDS)
     actual = set(ids)
     missing = sorted(expected - actual)
     extra = sorted(actual - expected)
     if missing:
-        raise ManifestError(f"missing paper ids: {', '.join(missing)}")
+        raise ManifestError(f"missing method ids: {', '.join(missing)}")
     if extra:
-        raise ManifestError(f"unexpected paper ids: {', '.join(extra)}")
+        raise ManifestError(f"unexpected method ids: {', '.join(extra)}")
 
     return ids
 
 
-def _validate_paper_entry(paper_id: str, paper: dict[str, Any]) -> None:
+def _validate_method_entry(method_id: str, method: dict[str, Any]) -> None:
     for field in ("title", "source_url", "pdf_path", "text_path", "code"):
-        if field not in paper:
-            raise ManifestError(f"{paper_id} missing {field}")
+        if field not in method:
+            raise ManifestError(f"{method_id} missing {field}")
 
-    code = paper["code"]
+    code = method["code"]
     if not isinstance(code, dict):
-        raise ManifestError(f"{paper_id} code must be a mapping")
+        raise ManifestError(f"{method_id} code must be a mapping")
 
     status = code.get("status")
     if status not in {"external", "implemented"}:
-        raise ManifestError(f"{paper_id} code.status must be external or implemented")
+        raise ManifestError(f"{method_id} code.status must be external or implemented")
 
     if status == "external":
         required_fields = ("repo_url", "local_path")
@@ -79,18 +79,18 @@ def _validate_paper_entry(paper_id: str, paper: dict[str, Any]) -> None:
 
     for field in required_fields:
         if not code.get(field):
-            raise ManifestError(f"{paper_id} code missing {field}")
+            raise ManifestError(f"{method_id} code missing {field}")
 
 
 def main() -> int:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Validate the TIDAL paper source manifest")
-    parser.add_argument("manifest", nargs="?", default="papers/sources.yaml")
+    parser = argparse.ArgumentParser(description="Validate the TIDAL method source manifest")
+    parser.add_argument("manifest", nargs="?", default="methods/sources.yaml")
     args = parser.parse_args()
 
-    paper_ids = validate_manifest(load_manifest(args.manifest))
-    print(f"ok: {len(paper_ids)} papers")
+    method_ids = validate_manifest(load_manifest(args.manifest))
+    print(f"ok: {len(method_ids)} methods")
     return 0
 
 
