@@ -83,6 +83,23 @@ compressed = apply_global_cap_compression(model, total_budget=budget, target_rol
 
 Advanced users can pass explicit roles such as `{ModuleRole.ATTENTION, ModuleRole.MLP}` or keep using existing `name_filter` callables. When both are supplied, both predicates must match.
 
+For LLM-Pruner/WANDA-style outputs, build a selector from exported module names, mask dictionaries, or state-dict tensor keys. TIDAL canonicalizes common wrapper prefixes such as `base_model.model.*`, `_orig_mod.*`, and parameter suffixes such as `.weight`, `.weight_mask`, `.qweight`, and `.scales` before applying the same role safety filter.
+
+```python
+from tidal.model_support import build_pruned_module_name_filter, list_linear_modules
+
+name_filter = build_pruned_module_name_filter(wanda_masks_or_state_dict, target_roles="wanda")
+targets = list_linear_modules(pruned_model, name_filter=name_filter)
+```
+
+To smoke-test the selector against a real tiny Hugging Face model on CPU, run the optional example. It is intentionally outside the default test suite because it may download model files.
+
+```bash
+TIDAL_HF_CACHE=/vePFS-Mindverse/user/intern/zhouch/.hf_cache \
+  python examples/model_support/hf_smoke.py \
+  --model-id hf-internal-testing/tiny-random-LlamaForCausalLM
+```
+
 ## RankAdaptor
 
 RankAdaptor searches hierarchical LoRA ranks for recovering a pruned model. The local implementation follows the paper workflow: candidate rank configurations, five-layer MLP performance model, online incremental task evaluation with prediction-error convergence, and PEFT export.

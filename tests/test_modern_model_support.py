@@ -1,7 +1,14 @@
 import torch
 from torch import nn
 
-from tidal.model_support import ModuleRole, build_modern_hf_name_filter, list_linear_modules
+from tidal.model_support import (
+    ModuleRole,
+    build_modern_hf_name_filter,
+    build_pruned_module_name_filter,
+    canonicalize_module_name,
+    list_linear_modules,
+    module_name_from_tensor_name,
+)
 from tidal.methods.global_rank_sparsity.torch import CAPPackedLinear, apply_global_cap_compression
 from tidal.methods.qpruner.torch import build_quantization_plan, collect_linear_layer_sizes
 from tidal.methods.rankadaptor import collect_linear_profiles
@@ -37,6 +44,14 @@ class QwenStyleModel(nn.Module):
         self.model = nn.Module()
         self.model.layers = nn.ModuleList([QwenLayer()])
         self.lm_head = nn.Linear(4, 4, bias=False)
+
+
+class WrappedPrunedModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.base_model = nn.Module()
+        self.base_model.model = QwenStyleModel()
+        self._orig_mod = QwenStyleModel()
 
 
 class FusedBlock(nn.Module):
@@ -164,3 +179,46 @@ def test_methods_use_modern_target_selector_without_custom_name_filter():
     assert isinstance(compressed.model.layers[0].block_sparse_moe.experts[0].w1, CAPPackedLinear)
     assert isinstance(compressed.model.layers[0].block_sparse_moe.gate, nn.Linear)
     assert isinstance(compressed.lm_head, nn.Linear)
+
+
+def test_pruner_and_wanda_paths_are_canonicalized_to_real_module_names():
+    assert (
+        canonicalize_module_name("base_model.model.model.layers.0.self_attn.q_proj.weight")
+        == "model.layers.0.self_attn.q_proj"
+    )
+    assert (
+        module_name_from_tensor_name("_orig_mod.model.layers.0.mlp.down_proj.weight_mask")
+        == "model.layers.0.mlp.down_proj"
+    )
+    assert canonicalize_module_name("model.layers.0.mlp.down_proj.qweight") == "model.layers.0.mlp.down_proj"
+
+    wrapped = WrappedPrunedModel()
+    infos = {info.name: info for info in list_linear_modules(wrapped, target_roles="modern")}
+    q_proj = infos["base_model.model.model.layers.0.self_attn.q_proj"]
+    assert q_proj.role is ModuleRole.ATTENTION
+    assert q_proj.canonical_name == "model.layers.0.self_attn.q_proj"
+    assert "base_model.model.lm_head" not in infos
+
+
+def test_pruned_module_filter_maps_wanda_and_llm_pruner_outputs_through_role_filter():
+    filter_from_state = build_pruned_module_name_filter(
+        {
+            "base_model.model.model.layers.0.self_attn.q_proj.weight": torch.empty(4, 4),
+            "model.layers.0.mlp.down_proj.weight_mask": torch.ones(4, 8),
+            "model.layers.0.block_sparse_moe.gate.weight": torch.empty(2, 4),
+            "base_model.model.lm_head.weight": torch.empty(4, 4),
+        },
+        target_roles="wanda",
+    )
+
+    llm_pruner_filter = build_pruned_module_name_filter(
+        ["base_model.model.model.layers.0.self_attn.q_proj.weight"],
+        target_roles="llm-pruner",
+    )
+
+    assert filter_from_state("model.layers.0.self_attn.q_proj")
+    assert llm_pruner_filter("model.layers.0.self_attn.q_proj")
+    assert filter_from_state("base_model.model.model.layers.0.self_attn.q_proj")
+    assert filter_from_state("_orig_mod.model.layers.0.mlp.down_proj")
+    assert not filter_from_state("model.layers.0.block_sparse_moe.gate")
+    assert not filter_from_state("base_model.model.lm_head")
