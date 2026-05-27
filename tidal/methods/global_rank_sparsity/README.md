@@ -61,9 +61,23 @@ compressed_model = apply_global_cap_compression(
 
 The `modern` selector includes attention, MLP, and MoE expert linear modules while excluding `lm_head`, embedding projections, and MoE routers by default. Existing `name_filter` callables remain supported and are composed with the role selector when both are provided.
 
+For pruned-model continuation experiments, use the HF CAP experiment CLI with a WANDA or LLM-Pruner-style target file and optional local calibration text:
+
+```bash
+python examples/global_rank_sparsity/hf_cap_experiment.py \
+  --model-id hf-internal-testing/tiny-random-LlamaForCausalLM \
+  --pruner-targets pruned_targets.txt \
+  --calibration-data calibration.txt \
+  --total-budget 256 \
+  --summary-json output/cap-summary.json
+```
+
+`--pruner-targets` accepts plain text, JSON, JSONL, or Torch state files. `--calibration-data` accepts plain text lines or JSONL records and uses causal-LM loss as the CAP evaluator. Omit calibration data to use the reconstruction-loss evaluator.
+
 Examples:
 
 - `examples/global_rank_sparsity/cap_policy_search.py`
 - `examples/global_rank_sparsity/torch_compress.py`
 - `examples/global_rank_sparsity/hf_cap_smoke.py`
+- `examples/global_rank_sparsity/hf_cap_experiment.py`
 

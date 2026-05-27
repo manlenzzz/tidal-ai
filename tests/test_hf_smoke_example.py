@@ -25,3 +25,14 @@ def test_hf_cap_smoke_help_runs_without_model_download():
     )
     assert "--total-budget" in result.stdout
     assert "--policy-steps" in result.stdout
+
+def test_hf_cap_experiment_help_runs_without_model_download():
+    script = Path("examples/global_rank_sparsity/hf_cap_experiment.py")
+    result = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "--pruner-targets" in result.stdout
+    assert "--calibration-data" in result.stdout
