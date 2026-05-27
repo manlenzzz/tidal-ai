@@ -13,3 +13,15 @@ def test_hf_smoke_help_runs_without_model_download():
     )
     assert "--model-id" in result.stdout
     assert "--max-modules" in result.stdout
+
+
+def test_hf_cap_smoke_help_runs_without_model_download():
+    script = Path("examples/global_rank_sparsity/hf_cap_smoke.py")
+    result = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "--total-budget" in result.stdout
+    assert "--policy-steps" in result.stdout

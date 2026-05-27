@@ -31,6 +31,24 @@ selected = select_cap_candidates(pool.candidates, budget=global_parameter_budget
 
 Each candidate records its layer name, component kind (`rank` or `sparse`), local index, score value, and parameter cost. Low-rank singular directions cost `rows + cols`; sparse residual entries cost `1`. The global optimizer returns `selected_candidates` so allocation decisions can be logged before Torch packing.
 
+The Torch pipeline can collect real model targets, optionally score candidates on calibration batches, and return structured metadata:
+
+```python
+from tidal.methods.global_rank_sparsity.torch import run_cap_compression
+
+result = run_cap_compression(
+    model,
+    total_budget=global_parameter_budget,
+    target_roles="modern",
+    calibration_batches=calibration_batches,
+    loss_fn=lambda model, batch: model(**batch).loss,
+)
+compressed_model = result.compressed_model
+print(result.global_result.parameter_count, len(result.global_result.selected_candidates))
+```
+
+`name_filter` can be built from LLM-Pruner/WANDA outputs with `build_pruned_module_name_filter` and composed with `target_roles="modern"`. Calibration is optional; without it, CAP uses reconstruction loss in the NumPy core.
+
 Modern Hugging Face-style models can be targeted without hand-written layer filters:
 
 ```python
@@ -47,4 +65,5 @@ Examples:
 
 - `examples/global_rank_sparsity/cap_policy_search.py`
 - `examples/global_rank_sparsity/torch_compress.py`
+- `examples/global_rank_sparsity/hf_cap_smoke.py`
 

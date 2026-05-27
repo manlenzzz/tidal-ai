@@ -9,9 +9,10 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from tidal.model_support import compose_name_filter
+from tidal.model_support import canonicalize_module_name, classify_linear_module_name, compose_name_filter
 from tidal.methods.global_rank_sparsity.core import (
     CAPCompression,
+    CAPGlobalSearchResult,
     compress_global_rank_sparsity,
     optimize_global_rank_sparsity,
     optimize_global_rank_sparsity_for_matrices,
@@ -19,9 +20,14 @@ from tidal.methods.global_rank_sparsity.core import (
 
 __all__ = [
     "CAPLayerResult",
+    "CAPRunResult",
+    "CAPTarget",
     "CAPPackedLinear",
     "apply_cap_compression",
     "apply_global_cap_compression",
+    "build_cap_calibration_evaluator",
+    "collect_cap_targets",
+    "run_cap_compression",
     "summarize_cap_layers",
 ]
 
@@ -32,6 +38,35 @@ class CAPLayerResult:
     parameter_count: int
     rank: int
     sparse_entries: int
+
+
+@dataclass(frozen=True)
+class CAPTarget:
+    name: str
+    module: nn.Linear
+    canonical_name: str
+    role: object
+    in_features: int
+    out_features: int
+    parameter_count: int
+
+    def identity_compression(self) -> CAPCompression:
+        weight = self.module.weight.detach().cpu().to(torch.float32).numpy()
+        return CAPCompression(
+            low_rank=weight,
+            sparse=np.zeros_like(weight),
+            rank_mask=np.ones(min(weight.shape), dtype=bool),
+            sparse_mask=np.zeros_like(weight, dtype=bool),
+            parameter_count=int(weight.size),
+        )
+
+
+@dataclass(frozen=True)
+class CAPRunResult:
+    compressed_model: nn.Module
+    targets: tuple[CAPTarget, ...]
+    global_result: CAPGlobalSearchResult
+    layer_summaries: tuple[CAPLayerResult, ...]
 
 
 class CAPPackedLinear(nn.Module):
@@ -136,6 +171,89 @@ def _set_submodule(model: nn.Module, name: str, module: nn.Module) -> None:
     setattr(parent, parts[-1], module)
 
 
+def _get_submodule(model: nn.Module, name: str) -> nn.Module:
+    module: nn.Module = model
+    for part in name.split("."):
+        module = getattr(module, part)
+    return module
+
+
+def collect_cap_targets(
+    model: nn.Module,
+    *,
+    name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
+) -> tuple[CAPTarget, ...]:
+    selected_name_filter = compose_name_filter(
+        name_filter,
+        target_roles=target_roles,
+        exclude_roles=exclude_target_roles,
+    )
+    targets: list[CAPTarget] = []
+    for name, module in model.named_modules():
+        if not name or not isinstance(module, nn.Linear):
+            continue
+        if selected_name_filter is not None and not selected_name_filter(name):
+            continue
+        canonical_name = canonicalize_module_name(name)
+        targets.append(
+            CAPTarget(
+                name=name,
+                module=module,
+                canonical_name=canonical_name,
+                role=classify_linear_module_name(canonical_name),
+                in_features=int(module.in_features),
+                out_features=int(module.out_features),
+                parameter_count=int(module.weight.numel()),
+            )
+        )
+    return tuple(targets)
+
+
+def _patch_modules(model: nn.Module, modules: Mapping[str, nn.Module]) -> dict[str, nn.Module]:
+    originals: dict[str, nn.Module] = {}
+    for name, module in modules.items():
+        originals[name] = _get_submodule(model, name)
+        _set_submodule(model, name, module)
+    return originals
+
+
+def build_cap_calibration_evaluator(
+    model: nn.Module,
+    targets: tuple[CAPTarget, ...] | list[CAPTarget],
+    calibration_batches: object,
+    loss_fn: Callable[[nn.Module, object], torch.Tensor | float],
+) -> Callable[[dict[str, CAPCompression]], float]:
+    target_by_name = {target.name: target for target in targets}
+    batches = tuple(calibration_batches)
+    if not batches:
+        raise ValueError("calibration_batches must not be empty")
+
+    def evaluator(compressions: dict[str, CAPCompression]) -> float:
+        packed_modules: dict[str, nn.Module] = {}
+        for name, compression in compressions.items():
+            if name not in target_by_name:
+                continue
+            packed_modules[name] = CAPPackedLinear.from_compression(target_by_name[name].module, compression)
+        originals = _patch_modules(model, packed_modules)
+        was_training = model.training
+        model.eval()
+        try:
+            losses: list[float] = []
+            with torch.no_grad():
+                for batch in batches:
+                    loss = loss_fn(model, batch)
+                    loss_value = float(loss.detach().cpu().item()) if isinstance(loss, torch.Tensor) else float(loss)
+                    losses.append(loss_value)
+            return float(np.mean(losses))
+        finally:
+            _patch_modules(model, originals)
+            model.train(was_training)
+
+    return evaluator
+
+
 def apply_cap_compression(
     model: nn.Module,
     budgets: Mapping[str, int],
@@ -169,6 +287,65 @@ def apply_cap_compression(
     return target
 
 
+def _pack_global_result(
+    target_model: nn.Module,
+    modules: Mapping[str, nn.Linear],
+    result: CAPGlobalSearchResult,
+) -> None:
+    for name, compression in result.compressions.items():
+        _set_submodule(target_model, name, CAPPackedLinear.from_compression(modules[name], compression))
+
+
+def run_cap_compression(
+    model: nn.Module,
+    *,
+    total_budget: int,
+    inplace: bool = False,
+    name_filter: Callable[[str], bool] | None = None,
+    target_roles: object | None = None,
+    exclude_target_roles: object | None = None,
+    calibration_batches: object | None = None,
+    loss_fn: Callable[[nn.Module, object], torch.Tensor | float] | None = None,
+    evaluator: Callable[[dict[str, CAPCompression]], float] | None = None,
+    max_iter: int = 200,
+    policy_steps: int = 80,
+    samples_per_step: int = 8,
+    seed: int | None = None,
+) -> CAPRunResult:
+    target = model if inplace else deepcopy(model)
+    targets = collect_cap_targets(
+        target,
+        name_filter=name_filter,
+        target_roles=target_roles,
+        exclude_target_roles=exclude_target_roles,
+    )
+    if not targets:
+        raise ValueError("model does not contain matching torch.nn.Linear modules")
+    modules = {target_info.name: target_info.module for target_info in targets}
+    matrices = {name: module.weight.detach().cpu().to(torch.float32).numpy() for name, module in modules.items()}
+    score_fn = evaluator
+    if score_fn is None and calibration_batches is not None:
+        if loss_fn is None:
+            raise ValueError("loss_fn is required when calibration_batches are supplied")
+        score_fn = build_cap_calibration_evaluator(target, targets, calibration_batches, loss_fn)
+    result = optimize_global_rank_sparsity_for_matrices(
+        matrices,
+        total_budget=total_budget,
+        evaluator=score_fn,
+        max_iter=max_iter,
+        policy_steps=policy_steps,
+        samples_per_step=samples_per_step,
+        seed=seed,
+    )
+    _pack_global_result(target, modules, result)
+    target._cap_global_result = result
+    return CAPRunResult(
+        compressed_model=target,
+        targets=targets,
+        global_result=result,
+        layer_summaries=tuple(summarize_cap_layers(target)),
+    )
+
 
 def apply_global_cap_compression(
     model: nn.Module,
@@ -184,33 +361,19 @@ def apply_global_cap_compression(
     samples_per_step: int = 8,
     seed: int | None = None,
 ) -> nn.Module:
-    target = model if inplace else deepcopy(model)
-    selected_name_filter = compose_name_filter(
-        name_filter,
-        target_roles=target_roles,
-        exclude_roles=exclude_target_roles,
-    )
-    modules = {
-        name: module
-        for name, module in target.named_modules()
-        if name and isinstance(module, nn.Linear) and (selected_name_filter is None or selected_name_filter(name))
-    }
-    if not modules:
-        raise ValueError("model does not contain matching torch.nn.Linear modules")
-    matrices = {name: module.weight.detach().cpu().to(torch.float32).numpy() for name, module in modules.items()}
-    result = optimize_global_rank_sparsity_for_matrices(
-        matrices,
+    return run_cap_compression(
+        model,
         total_budget=total_budget,
+        inplace=inplace,
+        name_filter=name_filter,
+        target_roles=target_roles,
+        exclude_target_roles=exclude_target_roles,
         evaluator=evaluator,
         max_iter=max_iter,
         policy_steps=policy_steps,
         samples_per_step=samples_per_step,
         seed=seed,
-    )
-    for name, compression in result.compressions.items():
-        _set_submodule(target, name, CAPPackedLinear.from_compression(modules[name], compression))
-    target._cap_global_result = result
-    return target
+    ).compressed_model
 
 
 def summarize_cap_layers(model: nn.Module) -> list[CAPLayerResult]:
