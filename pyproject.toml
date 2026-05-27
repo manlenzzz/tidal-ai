@@ -10,6 +10,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["numpy", "PyYAML"]
 
+[project.scripts]
+tidal = "tidal.cli.main:main"
+
 [project.optional-dependencies]
 torch = ["torch", "peft", "transformers", "accelerate"]
 

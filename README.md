@@ -10,9 +10,46 @@
   <a href="docs/citation.md"><img alt="Methods" src="https://img.shields.io/badge/methods-6-b45309"></a>
 </p>
 
-TIDAL is a method-first toolkit for efficient large-model systems. It collects reusable components for compression, quantization, low-rank adaptation, and multi-tenant LoRA serving behind stable Python APIs.
+TIDAL is a task-first toolkit for efficient large-model systems, with method-first internals for paper reproduction. Users get stable workflows for compression, adaptation, and serving; researchers can still inspect each method implementation directly.
 
 The codebase is maintained by our team: Changhai Zhou, Yuhua Zhou, and Shiyang Zhang.
+
+## Public Entry Points
+
+Use `tidal.workflows` or the `tidal` CLI for normal experiments. Method packages remain available for lower-level research code.
+
+```python
+from tidal.workflows.compression import cap_compress
+
+result = cap_compress(
+    model_id="hf-internal-testing/tiny-random-LlamaForCausalLM",
+    pruner_targets="pruned_targets.txt",
+    calibration_data="calibration.txt",
+    budget=256,
+    local_files_only=True,
+)
+result.save("runs/cap-smoke")
+```
+
+```bash
+tidal compress cap \
+  --model-id hf-internal-testing/tiny-random-LlamaForCausalLM \
+  --pruner-targets pruned_targets.txt \
+  --calibration-data calibration.txt \
+  --budget 256 \
+  --output runs/cap-smoke
+```
+
+Shared infrastructure is organized by user need:
+
+| Layer | Package | Purpose |
+| --- | --- | --- |
+| Workflows | `tidal.workflows` | Task-first APIs such as CAP compression |
+| CLI | `tidal.cli` | Command-line workflows such as `tidal compress cap` |
+| Targets | `tidal.targets` | HF module roles, pruner/WANDA/LLM-Pruner target loading |
+| Data | `tidal.data` | Calibration text loading and causal-LM batches |
+| Reports | `tidal.reports` | Summary JSON and run artifact helpers |
+| Methods | `tidal.methods.*` | Paper-level algorithm implementations |
 
 ## Method Layout
 
@@ -27,7 +64,7 @@ Each method owns its implementation, Torch integration, examples, and method not
 | QR-Adaptor | `tidal.methods.qr_adaptor` | `external/qr_adapter` | Upstream integration |
 | AutoQRA | `tidal.methods.autoqra` | `external/autoqra` | Upstream integration |
 
-Compatibility imports such as `tidal.rankadaptor`, `tidal.qpruner_torch`, and `tidal.cap_torch` are kept as thin re-export layers. New code should import from `tidal.methods.*`.
+Compatibility imports such as `tidal.rankadaptor`, `tidal.qpruner_torch`, and `tidal.cap_torch` are kept as thin re-export layers. New workflow code should import from `tidal.workflows`; new method research code should import from `tidal.methods.*`.
 
 ## Installation
 

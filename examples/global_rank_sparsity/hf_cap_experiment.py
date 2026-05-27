@@ -41,75 +41,28 @@ def resolve_cache_dir(cache_dir: str | None) -> str:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from tidal.workflows.compression import cap_compress
 
-    from tidal.model_support import build_pruned_module_name_filter
-    from tidal.methods.global_rank_sparsity.experiments import (
-        build_text_calibration_batches,
-        causal_lm_loss,
-        load_calibration_texts,
-        load_pruner_target_names,
-        summarize_cap_run,
-    )
-    from tidal.methods.global_rank_sparsity.torch import run_cap_compression
-
-    cache_dir = resolve_cache_dir(args.cache_dir)
-    load_kwargs: dict[str, object] = {
-        "cache_dir": cache_dir,
-        "local_files_only": args.local_files_only,
-        "trust_remote_code": args.trust_remote_code,
-        "torch_dtype": "auto",
-    }
-    if args.revision:
-        load_kwargs["revision"] = args.revision
-
-    model = AutoModelForCausalLM.from_pretrained(args.model_id, **load_kwargs)
-    model.eval()
-
-    pruner_names: list[str] | None = None
-    name_filter = None
-    if args.pruner_targets:
-        pruner_names = load_pruner_target_names(args.pruner_targets)
-        name_filter = build_pruned_module_name_filter(pruner_names, target_roles=args.target_roles)
-
-    calibration_batches = None
-    if args.calibration_data:
-        tokenizer = AutoTokenizer.from_pretrained(
-            args.model_id,
-            cache_dir=cache_dir,
-            local_files_only=args.local_files_only,
-            trust_remote_code=args.trust_remote_code,
-        )
-        texts = load_calibration_texts(args.calibration_data, text_field=args.calibration_text_field)
-        texts = texts[: max(0, args.calibration_max_samples)]
-        calibration_batches = build_text_calibration_batches(
-            tokenizer,
-            texts,
-            max_length=args.calibration_max_length,
-            batch_size=args.calibration_batch_size,
-            device="cpu",
-        )
-
-    result = run_cap_compression(
-        model,
-        total_budget=args.total_budget,
-        name_filter=name_filter,
+    result = cap_compress(
+        model_id=args.model_id,
+        cache_dir=resolve_cache_dir(args.cache_dir),
+        local_files_only=args.local_files_only,
+        trust_remote_code=args.trust_remote_code,
+        revision=args.revision,
+        budget=args.total_budget,
+        pruner_targets=args.pruner_targets,
+        calibration_data=args.calibration_data,
+        calibration_text_field=args.calibration_text_field,
+        calibration_max_samples=args.calibration_max_samples,
+        calibration_max_length=args.calibration_max_length,
+        calibration_batch_size=args.calibration_batch_size,
         target_roles=args.target_roles,
-        calibration_batches=calibration_batches,
-        loss_fn=causal_lm_loss if calibration_batches is not None else None,
         max_iter=args.max_iter,
         policy_steps=args.policy_steps,
         samples_per_step=args.samples_per_step,
         seed=args.seed,
     )
-    summary = summarize_cap_run(
-        result,
-        model_id=args.model_id,
-        target_roles=args.target_roles,
-        pruner_target_count=len(pruner_names) if pruner_names is not None else None,
-        calibration_batches=len(calibration_batches) if calibration_batches is not None else None,
-    )
-    payload = json.dumps(summary, indent=2, sort_keys=True)
+    payload = json.dumps(result.summary, indent=2, sort_keys=True)
     if args.summary_json:
         output_path = Path(args.summary_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)
