@@ -13,10 +13,23 @@ This package contains the local TIDAL implementation of the CAP-style two-stage 
 Primary APIs:
 
 - `robust_pca`
+- `build_cap_candidate_pool`
+- `select_cap_candidates`
 - `optimize_global_rank_sparsity_for_matrices`
 - `compress_global_rank_sparsity`
 - `apply_global_cap_compression`
 - `CAPPackedLinear`
+
+Stage 1 and Stage 2 can be inspected directly for debugging and method research:
+
+```python
+from tidal.methods.global_rank_sparsity import build_cap_candidate_pool, select_cap_candidates
+
+pool = build_cap_candidate_pool({"model.layers.0.mlp.down_proj": weight}, max_iter=200)
+selected = select_cap_candidates(pool.candidates, budget=global_parameter_budget)
+```
+
+Each candidate records its layer name, component kind (`rank` or `sparse`), local index, score value, and parameter cost. Low-rank singular directions cost `rows + cols`; sparse residual entries cost `1`. The global optimizer returns `selected_candidates` so allocation decisions can be logged before Torch packing.
 
 Modern Hugging Face-style models can be targeted without hand-written layer filters:
 

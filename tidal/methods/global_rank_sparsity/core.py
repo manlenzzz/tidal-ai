@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from enum import Enum
+from typing import Callable, Mapping
 
 import numpy as np
 
@@ -12,6 +13,42 @@ class RPCAResult:
     sparse: np.ndarray
     iterations: int
     residual_norm: float
+
+
+class CAPCandidateKind(str, Enum):
+    """Candidate families used by CAP Stage 2 budget allocation."""
+
+    RANK = "rank"
+    SPARSE = "sparse"
+
+
+@dataclass(frozen=True)
+class CAPCandidate:
+    id: str
+    layer: str
+    kind: CAPCandidateKind
+    local_index: int
+    value: float
+    cost: int
+    shape: tuple[int, int]
+
+
+@dataclass(frozen=True)
+class CAPCandidatePool:
+    decompositions: Mapping[str, RPCAResult]
+    candidates: tuple[CAPCandidate, ...]
+
+    @property
+    def layers(self) -> tuple[str, ...]:
+        return tuple(self.decompositions.keys())
+
+    @property
+    def total_candidates(self) -> int:
+        return len(self.candidates)
+
+    def reconstruct(self, layer: str) -> np.ndarray:
+        decomposition = self.decompositions[layer]
+        return decomposition.low_rank + decomposition.sparse
 
 
 @dataclass(frozen=True)
@@ -116,6 +153,90 @@ def _candidate_table(rpca: RPCAResult) -> tuple[np.ndarray, np.ndarray, np.ndarr
     )
 
 
+def _candidate_kind(kind_code: int) -> CAPCandidateKind:
+    return CAPCandidateKind.RANK if int(kind_code) == 0 else CAPCandidateKind.SPARSE
+
+
+def _candidate_id(layer: str, kind: CAPCandidateKind, local_index: int) -> str:
+    return f"{layer}:{kind.value}:{local_index}"
+
+
+def _candidates_for_rpca(layer: str, rpca: RPCAResult) -> tuple[CAPCandidate, ...]:
+    kinds, indices, values, costs, _ = _candidate_table(rpca)
+    rows, cols = rpca.low_rank.shape
+    candidates: list[CAPCandidate] = []
+    for kind_code, local_index, value, cost in zip(kinds, indices, values, costs):
+        kind = _candidate_kind(int(kind_code))
+        index = int(local_index)
+        candidates.append(
+            CAPCandidate(
+                id=_candidate_id(layer, kind, index),
+                layer=layer,
+                kind=kind,
+                local_index=index,
+                value=float(value),
+                cost=int(cost),
+                shape=(int(rows), int(cols)),
+            )
+        )
+    return tuple(candidates)
+
+
+def build_cap_candidate_pool(
+    matrices: Mapping[str, np.ndarray],
+    *,
+    lam: float | None = None,
+    max_iter: int = 200,
+) -> CAPCandidatePool:
+    """Run CAP Stage 1 and expose rank/sparse candidates for Stage 2."""
+
+    if not matrices:
+        raise ValueError("matrices must not be empty")
+    decompositions = {
+        name: robust_pca(np.asarray(matrix, dtype=np.float64), lam=lam, max_iter=max_iter)
+        for name, matrix in matrices.items()
+    }
+    candidates: list[CAPCandidate] = []
+    for name, rpca in decompositions.items():
+        candidates.extend(_candidates_for_rpca(name, rpca))
+    return CAPCandidatePool(decompositions=decompositions, candidates=tuple(candidates))
+
+
+def _candidate_sort_key(candidate: CAPCandidate, score: float) -> tuple[float, str, int, int]:
+    kind_rank = 0 if candidate.kind is CAPCandidateKind.RANK else 1
+    return (-float(score), candidate.layer, kind_rank, int(candidate.local_index))
+
+
+def select_cap_candidates(
+    candidates: tuple[CAPCandidate, ...] | list[CAPCandidate],
+    *,
+    scores: Mapping[str, float] | None = None,
+    budget: int,
+) -> tuple[CAPCandidate, ...]:
+    """Select candidates deterministically under a hard parameter budget."""
+
+    if budget < 0:
+        raise ValueError("budget must be non-negative")
+    score_map = scores or {candidate.id: candidate.value / max(float(candidate.cost), 1.0) for candidate in candidates}
+    selected: list[CAPCandidate] = []
+    used = 0
+    for candidate in sorted(candidates, key=lambda item: _candidate_sort_key(item, score_map.get(item.id, 0.0))):
+        if used + candidate.cost > budget:
+            continue
+        selected.append(candidate)
+        used += candidate.cost
+    return tuple(selected)
+
+
+def _selection_from_candidates(candidates: tuple[CAPCandidate, ...], selected: tuple[CAPCandidate, ...]) -> np.ndarray:
+    selected_ids = {candidate.id for candidate in selected}
+    return np.asarray([candidate.id in selected_ids for candidate in candidates], dtype=bool)
+
+
+def _selected_candidates_from_selection(candidates: tuple[CAPCandidate, ...], selection: np.ndarray) -> tuple[CAPCandidate, ...]:
+    return tuple(candidate for candidate, selected in zip(candidates, selection.astype(bool)) if bool(selected))
+
+
 def _compression_from_selection(rpca: RPCAResult, selection: np.ndarray) -> CAPCompression:
     rows, cols = rpca.low_rank.shape
     u, sigma, vt = np.linalg.svd(rpca.low_rank, full_matrices=False)
@@ -159,22 +280,13 @@ def compress_global_rank_sparsity(
 
     if budget <= 0:
         raise ValueError("budget must be positive")
-    rpca = robust_pca(matrix, lam=lam, max_iter=max_iter)
-    kinds, indices, values, costs, _ = _candidate_table(rpca)
-    if len(values) == 0:
-        zeros = np.zeros(0, dtype=bool)
-        return _compression_from_selection(rpca, zeros)
+    pool = build_cap_candidate_pool({"matrix": matrix}, lam=lam, max_iter=max_iter)
+    rpca = pool.decompositions["matrix"]
+    if not pool.candidates:
+        return _compression_from_selection(rpca, np.zeros(0, dtype=bool))
 
-    order = np.argsort(-(values / costs))
-    selection = np.zeros(len(values), dtype=bool)
-    used = 0
-    for index in order:
-        cost = int(costs[index])
-        if used + cost > budget:
-            continue
-        selection[index] = True
-        used += cost
-
+    selected = select_cap_candidates(pool.candidates, budget=budget)
+    selection = _selection_from_candidates(pool.candidates, selected)
     return _compression_from_selection(rpca, selection)
 
 
@@ -281,6 +393,7 @@ class CAPGlobalSearchResult:
     parameter_count: int
     best_loss: float
     history: tuple[CAPGlobalPolicyStep, ...]
+    selected_candidates: tuple[CAPCandidate, ...] = ()
 
 
 def _compressions_from_global_selection(
@@ -348,7 +461,8 @@ def optimize_global_rank_sparsity_for_matrices(
         raise ValueError("learning_rate must be positive")
 
     matrix_arrays = {name: np.asarray(matrix, dtype=np.float64) for name, matrix in matrices.items()}
-    rpcas = {name: robust_pca(matrix, lam=lam, max_iter=max_iter) for name, matrix in matrix_arrays.items()}
+    pool = build_cap_candidate_pool(matrix_arrays, lam=lam, max_iter=max_iter)
+    rpcas = dict(pool.decompositions)
     offsets: dict[str, tuple[int, int]] = {}
     values_list: list[np.ndarray] = []
     costs_list: list[np.ndarray] = []
@@ -363,7 +477,7 @@ def optimize_global_rank_sparsity_for_matrices(
     if cursor == 0:
         selection = np.zeros(0, dtype=bool)
         compressions = _compressions_from_global_selection(rpcas, offsets, selection)
-        return CAPGlobalSearchResult(compressions, 0, _global_default_loss(matrix_arrays, compressions), tuple())
+        return CAPGlobalSearchResult(compressions, 0, _global_default_loss(matrix_arrays, compressions), tuple(), tuple())
 
     values = np.concatenate(values_list)
     costs = np.concatenate(costs_list).astype(np.float64)
@@ -416,4 +530,5 @@ def optimize_global_rank_sparsity_for_matrices(
         int(np.sum(costs * final_selection)),
         float(final_loss),
         tuple(history),
+        _selected_candidates_from_selection(pool.candidates, final_selection),
     )
