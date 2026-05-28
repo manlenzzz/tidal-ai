@@ -7,3 +7,9 @@
 [submodule "external/qr_adapter"]
 	path = external/qr_adapter
 	url = https://github.com/harrysyz99/qr_adapter
+[submodule "external/BSLoRA"]
+	path = external/BSLoRA
+	url = https://github.com/yuhua-zhou/BSLoRA
+[submodule "external/LaRA"]
+	path = external/LaRA
+	url = https://github.com/yuhua-zhou/LaRA

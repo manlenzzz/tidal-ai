@@ -39,7 +39,7 @@
             <a class="button secondary" href="#citation">Cite TIDAL</a>
           </div>
           <dl class="hero-metrics" aria-label="Repository scope">
-            <div><dt>6</dt><dd>method papers</dd></div>
+            <div><dt>8</dt><dd>method integrations</dd></div>
             <div><dt>3</dt><dd>public workflows</dd></div>
             <div><dt>1</dt><dd>shared toolkit surface</dd></div>
           </dl>
@@ -144,7 +144,7 @@ python -m pip install -e ".[torch]"</code></pre>
             <span role="columnheader">Method</span>
             <span role="columnheader">Use case</span>
             <span role="columnheader">Package</span>
-            <span role="columnheader">Paper</span>
+            <span role="columnheader">Source</span>
           </div>
           <article class="method-row" role="row">
             <div role="cell"><strong>RankAdaptor</strong><small>Hierarchical LoRA rank allocation for recovering pruned models.</small></div>
@@ -181,6 +181,18 @@ python -m pip install -e ".[torch]"</code></pre>
             <span role="cell">Efficient fine-tuning search</span>
             <code role="cell">tidal.methods.autoqra</code>
             <a role="cell" href="https://arxiv.org/abs/2602.22268">arXiv</a>
+          </article>
+          <article class="method-row" role="row">
+            <div role="cell"><strong>BSLoRA</strong><small>ShareLoRA-style PEFT extensions and pruning-aware fine-tuning scripts.</small></div>
+            <span role="cell">Efficient fine-tuning</span>
+            <code role="cell">tidal.methods.bslora</code>
+            <a role="cell" href="https://github.com/yuhua-zhou/BSLoRA">GitHub</a>
+          </article>
+          <article class="method-row" role="row">
+            <div role="cell"><strong>LaRA</strong><small>Performance prediction and NAS/policy-network code for rank-allocation research.</small></div>
+            <span role="cell">Rank allocation</span>
+            <code role="cell">tidal.methods.lara</code>
+            <a role="cell" href="https://github.com/yuhua-zhou/LaRA">GitHub</a>
           </article>
         </div>
       </section>

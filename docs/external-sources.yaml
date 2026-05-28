@@ -26,3 +26,21 @@ external_repositories:
     branch: main
     license_path: external/autoqra/LICENSE
     license_summary: MIT
+  - id: bslora
+    name: BSLoRA
+    upstream_url: https://github.com/yuhua-zhou/BSLoRA
+    local_path: external/BSLoRA
+    integration_method: git-submodule
+    revision: bf2f69c295e183578706d35a19c849ef8623e10b
+    branch: main
+    license_path: pending upstream LICENSE
+    license_summary: Team-maintained code; upstream LICENSE file pending
+  - id: lara
+    name: LaRA
+    upstream_url: https://github.com/yuhua-zhou/LaRA
+    local_path: external/LaRA
+    integration_method: git-submodule
+    revision: 30fe862f80c88909e5aec3c65db21faf3cb22470
+    branch: main
+    license_path: pending upstream LICENSE
+    license_summary: Team-maintained code; upstream LICENSE file pending

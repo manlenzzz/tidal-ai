@@ -7,7 +7,8 @@
 <p align="center">
   <a href="https://github.com/manlenzzz/tidal-ai"><img alt="Project" src="https://img.shields.io/badge/project-TIDAL-0f766e"></a>
   <a href="https://manlenzzz.github.io/tidal-ai/"><img alt="Homepage" src="https://img.shields.io/badge/homepage-online-2563eb"></a>
-  <a href="docs/citation.md"><img alt="Methods" src="https://img.shields.io/badge/methods-6-b45309"></a>
+  <a href="#method-layout"><img alt="Methods" src="https://img.shields.io/badge/methods-8-b45309"></a>
+  <a href="docs/citation.md"><img alt="Papers" src="https://img.shields.io/badge/cited_papers-6-475569"></a>
 </p>
 
 TIDAL is a task-first toolkit for efficient large-model systems, with method-first internals for paper reproduction. Users get stable workflows for compression, adaptation, and serving; researchers can still inspect each method implementation directly.
@@ -99,6 +100,8 @@ Each method owns its implementation, Torch integration, examples, and method not
 | Dynamic Operator Optimization | `tidal.methods.dynamic_operator_optimization` | `external/Dop` | Upstream integration plus CPU reference |
 | QR-Adaptor | `tidal.methods.qr_adaptor` | `external/qr_adapter` | Upstream integration |
 | AutoQRA | `tidal.methods.autoqra` | `external/autoqra` | Upstream integration |
+| BSLoRA | `tidal.methods.bslora` | `external/BSLoRA` | Team upstream integration |
+| LaRA | `tidal.methods.lara` | `external/LaRA` | Team upstream integration |
 
 Compatibility imports such as `tidal.rankadaptor`, `tidal.qpruner_torch`, and `tidal.cap_torch` are kept as thin re-export layers. New workflow code should import from `tidal.workflows`; new method research code should import from `tidal.methods.*`.
 
@@ -254,6 +257,8 @@ The team-maintained upstream repositories are kept intact under `external/` and 
 | Dynamic Operator Optimization | `harrysyz99/Dop` | `external/Dop` |
 | QR-Adaptor | `harrysyz99/qr_adapter` | `external/qr_adapter` |
 | AutoQRA | `harrysyz99/autoqra` | `external/autoqra` |
+| BSLoRA | `yuhua-zhou/BSLoRA` | `external/BSLoRA` |
+| LaRA | `yuhua-zhou/LaRA` | `external/LaRA` |
 
 ## Citation
 

@@ -8,7 +8,7 @@ TIDAL contributions should add working code, tests, examples, or maintained inte
 2. Add a small runnable example under `examples/`.
 3. Add CPU tests under `tests/` for the public API.
 4. Update the README module table if the API is user-facing.
-5. Add external repositories as submodules under `external/` when the upstream license permits it.
+5. Add external repositories as submodules under `external/` when the upstream license permits it or the team owns the code and is preparing the upstream license file.
 
 ## Development Checks
 
