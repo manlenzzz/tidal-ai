@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Sequence
 
 from tidal.methods.global_rank_sparsity.torch import CAPRunResult
 from tidal.methods.qpruner.core import config_memory_bits
 from tidal.methods.qpruner.torch import QPrunerRun
+from tidal.methods.rankadaptor.core import ModuleProfile, RankSearchResult
 
-__all__ = ["save_summary_json", "summarize_cap_run", "summarize_qpruner_run"]
+__all__ = ["save_summary_json", "summarize_cap_run", "summarize_qpruner_run", "summarize_rankadaptor_run"]
 
 
 def _jsonable_target_roles(target_roles: object | None) -> object | None:
@@ -88,4 +89,44 @@ def summarize_qpruner_run(
         summary["pruner_target_count"] = int(pruner_target_count)
     if calibration_batches is not None:
         summary["calibration_batches"] = int(calibration_batches)
+    return summary
+
+
+def summarize_rankadaptor_run(
+    result: RankSearchResult,
+    *,
+    profiles: Sequence[ModuleProfile],
+    model_id: str,
+    target_roles: object | None = None,
+    pruner_target_count: int | None = None,
+    search_type: str = "allocation",
+    max_profiles: int = 64,
+) -> dict[str, object]:
+    profile_list = list(profiles)
+    names = [profile.name for profile in profile_list[: max(0, max_profiles)]]
+    profile_by_name = {profile.name: profile for profile in profile_list}
+    summary: dict[str, object] = {
+        "method": "rankadaptor",
+        "model_id": model_id,
+        "target_roles": _jsonable_target_roles(target_roles),
+        "search_type": search_type,
+        "profile_count": len(profile_list),
+        "rank_config": {name: int(rank) for name, rank in sorted(result.config.items())},
+        "adapter_cost": int(result.cost),
+        "score": float(result.score),
+        "history_steps": len(result.history),
+        "profiles": [
+            {
+                "name": name,
+                "sensitivity": float(profile_by_name[name].sensitivity),
+                "min_rank": int(profile_by_name[name].min_rank),
+                "max_rank": int(profile_by_name[name].max_rank),
+                "rank_step": int(profile_by_name[name].rank_step),
+                "cost_per_rank": int(profile_by_name[name].cost_per_rank),
+            }
+            for name in names
+        ],
+    }
+    if pruner_target_count is not None:
+        summary["pruner_target_count"] = int(pruner_target_count)
     return summary

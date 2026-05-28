@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 
+from tidal.workflows.adaptation import rankadaptor_adapt
 from tidal.workflows.compression import cap_compress, qpruner_compress
 
 
@@ -68,6 +69,29 @@ def build_parser() -> argparse.ArgumentParser:
     qpruner.add_argument("--local-files-only", action="store_true")
     qpruner.add_argument("--trust-remote-code", action="store_true")
     qpruner.add_argument("--output", default=None, help="Optional run directory. Writes summary.json when supplied.")
+
+    adapt = subparsers.add_parser("adapt", help="Adaptation and fine-tuning preparation workflows.")
+    adapt_subparsers = adapt.add_subparsers(dest="method", required=True)
+
+    rankadaptor = adapt_subparsers.add_parser("rankadaptor", help="Run RankAdaptor LoRA rank allocation.")
+    rankadaptor.add_argument("--model-id", required=True, help="Hugging Face model id or local model path.")
+    rankadaptor.add_argument("--cache-dir", default=None)
+    rankadaptor.add_argument("--target-roles", default="modern")
+    rankadaptor.add_argument("--pruner-targets", default=None, help="Text, JSON, JSONL, or Torch state file with pruned target names.")
+    rankadaptor.add_argument("--sensitivities", default=None, help="JSON, JSONL, or text file mapping module names to sensitivity scores.")
+    rankadaptor.add_argument("--budget", type=int, required=True, help="Total LoRA adapter parameter budget.")
+    rankadaptor.add_argument("--min-rank", type=int, default=1)
+    rankadaptor.add_argument("--max-rank", type=int, default=64)
+    rankadaptor.add_argument("--rank-step", type=int, default=1)
+    rankadaptor.add_argument("--alpha-multiplier", type=int, default=2)
+    rankadaptor.add_argument("--max-steps", type=int, default=None)
+    rankadaptor.add_argument("--min-gain", type=float, default=0.0)
+    rankadaptor.add_argument("--seed", type=int, default=0)
+    rankadaptor.add_argument("--revision", default=None)
+    rankadaptor.add_argument("--local-files-only", action="store_true")
+    rankadaptor.add_argument("--trust-remote-code", action="store_true")
+    rankadaptor.add_argument("--no-apply-peft", action="store_true", help="Only emit the selected PEFT config summary; do not wrap the model.")
+    rankadaptor.add_argument("--output", default=None, help="Optional run directory. Writes summary.json when supplied.")
     return parser
 
 
@@ -117,6 +141,30 @@ def main(argv: list[str] | None = None) -> int:
             max_average_bits=args.max_average_bits,
             refine_trials=args.refine_trials,
             bins=args.bins,
+            seed=args.seed,
+        )
+        if args.output:
+            result.save(Path(args.output))
+        print(json.dumps(result.summary, indent=2, sort_keys=True))
+        return 0
+    if args.command == "adapt" and args.method == "rankadaptor":
+        result = rankadaptor_adapt(
+            model_id=args.model_id,
+            cache_dir=resolve_cache_dir(args.cache_dir),
+            local_files_only=args.local_files_only,
+            trust_remote_code=args.trust_remote_code,
+            revision=args.revision,
+            pruner_targets=args.pruner_targets,
+            sensitivities=args.sensitivities,
+            budget=args.budget,
+            min_rank=args.min_rank,
+            max_rank=args.max_rank,
+            rank_step=args.rank_step,
+            target_roles=args.target_roles,
+            max_steps=args.max_steps,
+            min_gain=args.min_gain,
+            alpha_multiplier=args.alpha_multiplier,
+            apply_peft=not args.no_apply_peft,
             seed=args.seed,
         )
         if args.output:

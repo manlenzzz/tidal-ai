@@ -19,7 +19,7 @@ The codebase is maintained by our team: Changhai Zhou, Yuhua Zhou, and Shiyang Z
 Use `tidal.workflows` or the `tidal` CLI for normal experiments. Method packages remain available for lower-level research code.
 
 ```python
-from tidal.workflows.compression import cap_compress, qpruner_compress
+from tidal.workflows import cap_compress, qpruner_compress, rankadaptor_adapt
 
 cap_run = cap_compress(
     model_id="hf-internal-testing/tiny-random-LlamaForCausalLM",
@@ -39,6 +39,16 @@ qpruner_run = qpruner_compress(
     local_files_only=True,
 )
 qpruner_run.save("runs/qpruner-smoke")
+
+adapter_run = rankadaptor_adapt(
+    model_id="hf-internal-testing/tiny-random-LlamaForCausalLM",
+    pruner_targets="pruned_targets.txt",
+    sensitivities="sensitivities.json",
+    budget=4096,
+    max_rank=16,
+    local_files_only=True,
+)
+adapter_run.save("runs/rankadaptor-smoke")
 ```
 
 ```bash
@@ -56,14 +66,22 @@ tidal compress qpruner \
   --candidate-bits 2,4,8 \
   --max-average-bits 4.0 \
   --output runs/qpruner-smoke
+
+tidal adapt rankadaptor \
+  --model-id hf-internal-testing/tiny-random-LlamaForCausalLM \
+  --pruner-targets pruned_targets.txt \
+  --sensitivities sensitivities.json \
+  --budget 4096 \
+  --max-rank 16 \
+  --output runs/rankadaptor-smoke
 ```
 
 Shared infrastructure is organized by user need:
 
 | Layer | Package | Purpose |
 | --- | --- | --- |
-| Workflows | `tidal.workflows` | Task-first APIs such as CAP and QPruner compression |
-| CLI | `tidal.cli` | Command-line workflows such as `tidal compress cap` and `tidal compress qpruner` |
+| Workflows | `tidal.workflows` | Task-first APIs such as CAP/QPruner compression and RankAdaptor adaptation |
+| CLI | `tidal.cli` | Command-line workflows such as `tidal compress ...` and `tidal adapt rankadaptor` |
 | Targets | `tidal.targets` | HF module roles, pruner/WANDA/LLM-Pruner target loading |
 | Data | `tidal.data` | Calibration text loading and causal-LM batches |
 | Reports | `tidal.reports` | Summary JSON and run artifact helpers |
@@ -157,7 +175,23 @@ TIDAL_HF_CACHE=/vePFS-Mindverse/user/intern/zhouch/.hf_cache \
 
 ## RankAdaptor
 
-RankAdaptor searches hierarchical LoRA ranks for recovering a pruned model. The local implementation follows the paper workflow: candidate rank configurations, five-layer MLP performance model, online incremental task evaluation with prediction-error convergence, and PEFT export.
+RankAdaptor searches hierarchical LoRA ranks for recovering a pruned model. For normal use, run the workflow on a pruned model with module sensitivities and an adapter budget; it builds the PEFT LoRA configuration, optionally applies it, and writes the same `summary.json` artifact as compression workflows.
+
+```python
+from tidal.workflows import rankadaptor_adapt
+
+run = rankadaptor_adapt(
+    model=pruned_model,
+    pruner_targets="pruned_targets.txt",
+    sensitivities=sensitivity,
+    budget=adapter_budget,
+    min_rank=1,
+    max_rank=64,
+)
+peft_model = run.model
+```
+
+The method package remains available for custom research loops. It includes candidate rank configuration utilities, the five-layer MLP performance model, online incremental task evaluation with prediction-error convergence, and PEFT config export.
 
 ```python
 from peft import get_peft_model

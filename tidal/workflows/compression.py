@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
-from tidal.data import build_text_calibration_batches, causal_lm_loss, load_calibration_texts
+from tidal.data import causal_lm_loss
 from tidal.methods.global_rank_sparsity.core import CAPCompression
 from tidal.methods.global_rank_sparsity.torch import run_cap_compression
 from tidal.methods.qpruner.torch import (
@@ -14,7 +14,11 @@ from tidal.methods.qpruner.torch import (
     run_qpruner_mixed_precision,
 )
 from tidal.reports import save_summary_json, summarize_cap_run, summarize_qpruner_run
-from tidal.targets import build_pruned_module_name_filter, load_pruner_target_names
+from tidal.workflows.common import (
+    build_calibration_batches_from_text,
+    load_or_use_causal_lm,
+    merge_pruner_filter,
+)
 
 
 @dataclass(frozen=True)
@@ -25,104 +29,6 @@ class CompressionResult:
 
     def save(self, output_dir: str | Path) -> Path:
         return save_summary_json(self.summary, output_dir)
-
-
-def _load_or_use_model(
-    *,
-    model: object | None,
-    model_id: str | None,
-    cache_dir: str | None,
-    local_files_only: bool,
-    trust_remote_code: bool,
-    revision: str | None,
-    target_roles: object | None,
-) -> tuple[object, str, object | None]:
-    loaded_model_id = model_id or "in-memory"
-    effective_target_roles = target_roles
-    if model is not None:
-        return model, loaded_model_id, effective_target_roles
-    if model_id is None:
-        raise ValueError("either model or model_id is required")
-
-    from transformers import AutoModelForCausalLM
-
-    load_kwargs: dict[str, object] = {
-        "cache_dir": cache_dir,
-        "local_files_only": local_files_only,
-        "trust_remote_code": trust_remote_code,
-        "torch_dtype": "auto",
-    }
-    if revision:
-        load_kwargs["revision"] = revision
-    target_model = AutoModelForCausalLM.from_pretrained(model_id, **load_kwargs)
-    target_model.eval()
-    if effective_target_roles is None:
-        effective_target_roles = "modern"
-    return target_model, loaded_model_id, effective_target_roles
-
-
-def _merge_pruner_filter(
-    *,
-    pruner_targets: str | Path | Sequence[str] | None,
-    target_roles: object | None,
-    name_filter: Callable[[str], bool] | None,
-) -> tuple[list[str] | None, Callable[[str], bool] | None]:
-    if pruner_targets is None:
-        return None, name_filter
-
-    pruner_names = (
-        load_pruner_target_names(pruner_targets)
-        if isinstance(pruner_targets, str | Path)
-        else [str(name) for name in pruner_targets]
-    )
-    pruner_filter = build_pruned_module_name_filter(pruner_names, target_roles=target_roles)
-    if name_filter is None:
-        return pruner_names, pruner_filter
-
-    def combined_filter(name: str) -> bool:
-        return bool(name_filter(name)) and pruner_filter(name)
-
-    return pruner_names, combined_filter
-
-
-def _build_calibration_batches(
-    *,
-    calibration_data: str | Path | Sequence[str] | None,
-    calibration_text_field: str,
-    calibration_max_samples: int,
-    calibration_max_length: int,
-    calibration_batch_size: int,
-    tokenizer: object | None,
-    model_id: str | None,
-    cache_dir: str | None,
-    local_files_only: bool,
-    trust_remote_code: bool,
-) -> list[object] | None:
-    if calibration_data is None:
-        return None
-    if isinstance(calibration_data, str | Path):
-        texts = load_calibration_texts(calibration_data, text_field=calibration_text_field)
-    else:
-        texts = [str(text) for text in calibration_data]
-    texts = texts[: max(0, calibration_max_samples)]
-    if tokenizer is None:
-        if model_id is None:
-            raise ValueError("tokenizer is required when calibration_data is used with an in-memory model")
-        from transformers import AutoTokenizer
-
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_id,
-            cache_dir=cache_dir,
-            local_files_only=local_files_only,
-            trust_remote_code=trust_remote_code,
-        )
-    return build_text_calibration_batches(
-        tokenizer,
-        texts,
-        max_length=calibration_max_length,
-        batch_size=calibration_batch_size,
-        device="cpu",
-    )
 
 
 def cap_compress(
@@ -150,7 +56,7 @@ def cap_compress(
     seed: int | None = 0,
     inplace: bool = False,
 ) -> CompressionResult:
-    target_model, loaded_model_id, effective_target_roles = _load_or_use_model(
+    target_model, loaded_model_id, effective_target_roles = load_or_use_causal_lm(
         model=model,
         model_id=model_id,
         cache_dir=cache_dir,
@@ -159,12 +65,12 @@ def cap_compress(
         revision=revision,
         target_roles=target_roles,
     )
-    pruner_names, effective_filter = _merge_pruner_filter(
+    pruner_names, effective_filter = merge_pruner_filter(
         pruner_targets=pruner_targets,
         target_roles=effective_target_roles,
         name_filter=name_filter,
     )
-    calibration_batches = _build_calibration_batches(
+    calibration_batches = build_calibration_batches_from_text(
         calibration_data=calibration_data,
         calibration_text_field=calibration_text_field,
         calibration_max_samples=calibration_max_samples,
@@ -235,7 +141,7 @@ def qpruner_compress(
     if importances is None and calibration_batches is None and calibration_data is None:
         raise ValueError("importances, calibration_batches, or calibration_data is required")
 
-    target_model, loaded_model_id, effective_target_roles = _load_or_use_model(
+    target_model, loaded_model_id, effective_target_roles = load_or_use_causal_lm(
         model=model,
         model_id=model_id,
         cache_dir=cache_dir,
@@ -244,7 +150,7 @@ def qpruner_compress(
         revision=revision,
         target_roles=target_roles,
     )
-    pruner_names, effective_filter = _merge_pruner_filter(
+    pruner_names, effective_filter = merge_pruner_filter(
         pruner_targets=pruner_targets,
         target_roles=effective_target_roles,
         name_filter=name_filter,
@@ -252,7 +158,7 @@ def qpruner_compress(
 
     prepared_batches = list(calibration_batches) if calibration_batches is not None else None
     if importances is None and prepared_batches is None:
-        prepared_batches = _build_calibration_batches(
+        prepared_batches = build_calibration_batches_from_text(
             calibration_data=calibration_data,
             calibration_text_field=calibration_text_field,
             calibration_max_samples=calibration_max_samples,
