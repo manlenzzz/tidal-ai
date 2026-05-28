@@ -4,161 +4,197 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TIDAL | Efficient Large-Model Systems Toolkit</title>
-    <meta name="description" content="TIDAL is an open-source toolkit for efficient large-model compression, quantization, adaptation, fine-tuning, and serving.">
+    <meta name="description" content="TIDAL is an open-source toolkit for efficient large-model compression, adaptation, serving, fine-tuning, post-training, and reinforcement learning research.">
     <link rel="stylesheet" href="site/styles.css">
   </head>
   <body>
-    <header class="topbar">
+    <header class="site-header">
       <a class="brand" href="#top" aria-label="TIDAL home">
-        <span class="brand-mark">T</span>
+        <span class="brand-mark" aria-hidden="true">T</span>
         <span>TIDAL</span>
       </a>
-      <nav class="nav" aria-label="Primary navigation">
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="#quickstart">Quickstart</a>
+        <a href="#workflows">Workflows</a>
         <a href="#methods">Methods</a>
-        <a href="#install">Install</a>
         <a href="#citation">Citation</a>
-        <a href="#team">Team</a>
       </nav>
-      <a class="repo-link" href="https://github.com/manlenzzz/tidal-ai">GitHub</a>
+      <a class="github-link" href="https://github.com/manlenzzz/tidal-ai">GitHub</a>
     </header>
 
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow">Efficient large-model systems</p>
-          <h1 id="hero-title">TIDAL</h1>
-          <p class="hero-subtitle">A research-to-engineering toolkit for compression, mixed-precision quantization, low-rank adaptation, fine-tuning, and LoRA serving.</p>
-          <div class="hero-actions" aria-label="Project actions">
-            <a class="button primary" href="https://github.com/manlenzzz/tidal-ai">View Repository</a>
-            <a class="button secondary" href="#methods">Explore Methods</a>
-            <a class="button secondary" href="#citation">Copy Citations</a>
+          <div class="status-line" aria-label="Project status">
+            <span>Open source</span>
+            <span>PyTorch</span>
+            <span>PEFT</span>
+            <span>Hugging Face</span>
           </div>
+          <h1 id="hero-title">TIDAL</h1>
+          <p class="hero-lede">A toolkit for efficient large-model systems: compression, quantization, low-rank adaptation, serving, and the post-training workflows around them.</p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="button primary" href="#quickstart">Get started</a>
+            <a class="button secondary" href="#workflows">View workflows</a>
+            <a class="button secondary" href="#citation">Cite TIDAL</a>
+          </div>
+          <dl class="hero-metrics" aria-label="Repository scope">
+            <div><dt>6</dt><dd>method papers</dd></div>
+            <div><dt>3</dt><dd>public workflows</dd></div>
+            <div><dt>1</dt><dd>shared toolkit surface</dd></div>
+          </dl>
         </div>
-        <div class="hero-status" aria-label="Project scope">
-          <div><strong>6</strong><span>method families</span></div>
-          <div><strong>3</strong><span>local packages</span></div>
-          <div><strong>3</strong><span>upstream integrations</span></div>
-        </div>
+
+        <aside class="code-panel" aria-label="TIDAL workflow example">
+          <div class="panel-topline">
+            <span>Python workflow</span>
+            <code>tidal.workflows</code>
+          </div>
+          <pre><code>from tidal.workflows import qpruner_compress, rankadaptor_adapt
+
+quant_run = qpruner_compress(
+    model=pruned_model,
+    calibration_batches=calibration_batches,
+    candidate_bits=(2, 4, 8),
+    max_average_bits=4.0,
+)
+
+adapter_run = rankadaptor_adapt(
+    model=quant_run.model,
+    sensitivities="sensitivities.json",
+    budget=4096,
+    max_rank=16,
+)
+
+adapter_run.save("runs/rankadaptor")</code></pre>
+        </aside>
       </section>
 
-      <section id="install" class="install-band" aria-labelledby="install-title">
-        <div>
+      <section id="quickstart" class="quickstart section-tight" aria-labelledby="quickstart-title">
+        <div class="section-intro">
           <p class="eyebrow">Quickstart</p>
-          <h2 id="install-title">Install once, import each method as a package.</h2>
+          <h2 id="quickstart-title">Install, run a workflow, keep the method package when you need internals.</h2>
         </div>
-        <pre class="command"><code>git clone --recurse-submodules https://github.com/manlenzzz/tidal-ai
+        <div class="quickstart-grid">
+          <article class="command-block">
+            <span>Install</span>
+            <pre><code>git clone --recurse-submodules https://github.com/manlenzzz/tidal-ai
 cd tidal-ai
 python -m pip install -e ".[torch]"</code></pre>
+          </article>
+          <article class="command-block">
+            <span>CLI</span>
+            <pre><code>tidal compress qpruner \
+  --model-id hf-internal-testing/tiny-random-LlamaForCausalLM \
+  --calibration-data calibration.txt \
+  --candidate-bits 2,4,8 \
+  --max-average-bits 4.0</code></pre>
+          </article>
+        </div>
       </section>
 
-      <section id="methods" class="section methods" aria-labelledby="methods-title">
-        <div class="section-heading">
-          <p class="eyebrow">Method registry</p>
-          <h2 id="methods-title">Reusable components for efficient training, compression, and serving.</h2>
-          <p>Each method has its own package boundary, example entry point, and citation so downstream users can adopt one algorithm without absorbing the whole repository.</p>
+      <section id="workflows" class="section" aria-labelledby="workflows-title">
+        <div class="section-intro split">
+          <div>
+            <p class="eyebrow">Workflows</p>
+            <h2 id="workflows-title">Task-first APIs for the paths people actually run.</h2>
+          </div>
+          <p>TIDAL keeps paper-level algorithms in method packages, then exposes stable workflow entry points for model-level experiments and engineering use.</p>
+        </div>
+
+        <div class="workflow-grid">
+          <article class="workflow-card">
+            <div class="card-kicker">Compression</div>
+            <h3>Pruned and compressed LLMs</h3>
+            <p>CAP handles global rank-sparsity allocation. QPruner handles mixed-precision decisions after structured pruning.</p>
+            <code>cap_compress, qpruner_compress</code>
+          </article>
+          <article class="workflow-card">
+            <div class="card-kicker">Adaptation</div>
+            <h3>Rank-adaptive LoRA recovery</h3>
+            <p>RankAdaptor allocates LoRA ranks under a budget and returns a PEFT-ready adapted model plus a reproducible summary.</p>
+            <code>rankadaptor_adapt</code>
+          </article>
+          <article class="workflow-card">
+            <div class="card-kicker">Serving</div>
+            <h3>Multi-tenant LoRA serving</h3>
+            <p>Dynamic operator optimization components are integrated as upstream code for serving-oriented experimentation.</p>
+            <code>tidal.methods.dynamic_operator_optimization</code>
+          </article>
+          <article class="workflow-card muted-card">
+            <div class="card-kicker">Growing scope</div>
+            <h3>Fine-tuning, post-training, RL</h3>
+            <p>The project layout leaves room for additional efficient inference, post-training, and reinforcement learning modules.</p>
+            <code>tidal.methods.*</code>
+          </article>
+        </div>
+      </section>
+
+      <section id="methods" class="section methods-section" aria-labelledby="methods-title">
+        <div class="section-intro split">
+          <div>
+            <p class="eyebrow">Method registry</p>
+            <h2 id="methods-title">One toolkit surface, separate method boundaries.</h2>
+          </div>
+          <p>Use workflows for normal experiments. Drop into `tidal.methods.*` when you need the paper algorithm, search space, or integration code directly.</p>
         </div>
 
         <div class="method-table" role="table" aria-label="TIDAL method registry">
           <div class="method-row method-head" role="row">
             <span role="columnheader">Method</span>
-            <span role="columnheader">System target</span>
+            <span role="columnheader">Use case</span>
             <span role="columnheader">Package</span>
-            <span role="columnheader">Source</span>
+            <span role="columnheader">Paper</span>
           </div>
-
           <article class="method-row" role="row">
-            <div role="cell">
-              <strong>RankAdaptor</strong>
-              <small>Hierarchical rank allocation for pruned LLM recovery</small>
-            </div>
-            <span role="cell">PEFT rank scheduling</span>
+            <div role="cell"><strong>RankAdaptor</strong><small>Hierarchical LoRA rank allocation for recovering pruned models.</small></div>
+            <span role="cell">Efficient fine-tuning</span>
             <code role="cell">tidal.methods.rankadaptor</code>
             <a role="cell" href="https://arxiv.org/abs/2406.15734">arXiv</a>
           </article>
-
           <article class="method-row" role="row">
-            <div role="cell">
-              <strong>QPruner</strong>
-              <small>Probabilistic precision decisions after structured pruning</small>
-            </div>
+            <div role="cell"><strong>QPruner</strong><small>Probabilistic quantization decisions after structured pruning.</small></div>
             <span role="cell">Mixed-precision pruning</span>
             <code role="cell">tidal.methods.qpruner</code>
             <a role="cell" href="https://arxiv.org/abs/2412.11629">arXiv</a>
           </article>
-
           <article class="method-row" role="row">
-            <div role="cell">
-              <strong>Global Rank and Sparsity</strong>
-              <small>RPCA decomposition plus global rank-sparsity allocation</small>
-            </div>
+            <div role="cell"><strong>Global Rank and Sparsity</strong><small>RPCA decomposition with global rank and sparse budget allocation.</small></div>
             <span role="cell">LLM compression</span>
             <code role="cell">tidal.methods.global_rank_sparsity</code>
             <a role="cell" href="https://openreview.net/forum?id=ZaPmQ0NHs4">OpenReview</a>
           </article>
-
           <article class="method-row" role="row">
-            <div role="cell">
-              <strong>Dop</strong>
-              <small>Dynamic operator optimization for multi-tenant LoRA serving</small>
-            </div>
-            <span role="cell">LoRA serving kernels</span>
+            <div role="cell"><strong>Dynamic Operator Optimization</strong><small>Operator optimization for efficient multi-tenant LoRA serving.</small></div>
+            <span role="cell">LoRA serving</span>
             <code role="cell">tidal.methods.dynamic_operator_optimization</code>
             <a role="cell" href="https://ojs.aaai.org/index.php/AAAI/article/view/34453">AAAI</a>
           </article>
-
           <article class="method-row" role="row">
-            <div role="cell">
-              <strong>QR-Adaptor</strong>
-              <small>Fidelity-plasticity aligned quantization and adapters</small>
-            </div>
-            <span role="cell">Mixed-precision fine-tuning</span>
+            <div role="cell"><strong>QR-Adaptor</strong><small>Mixed-precision fine-tuning aligned with linguistic hierarchies.</small></div>
+            <span role="cell">Quantized adaptation</span>
             <code role="cell">tidal.methods.qr_adaptor</code>
             <a role="cell" href="https://arxiv.org/abs/2505.03802">arXiv</a>
           </article>
-
           <article class="method-row" role="row">
-            <div role="cell">
-              <strong>AutoQRA</strong>
-              <small>Joint search over quantization bit-widths and LoRA ranks</small>
-            </div>
-            <span role="cell">Quantized fine-tuning</span>
+            <div role="cell"><strong>AutoQRA</strong><small>Joint search over quantization bit-widths and LoRA ranks.</small></div>
+            <span role="cell">Efficient fine-tuning search</span>
             <code role="cell">tidal.methods.autoqra</code>
             <a role="cell" href="https://arxiv.org/abs/2602.22268">arXiv</a>
           </article>
         </div>
       </section>
 
-      <section class="section architecture" aria-labelledby="architecture-title">
-        <div class="section-heading">
-          <p class="eyebrow">Toolkit shape</p>
-          <h2 id="architecture-title">Method-first layout, shared engineering surface.</h2>
-        </div>
-        <div class="architecture-grid">
-          <article>
-            <span>Research methods</span>
-            <h3>Paper algorithms live in isolated packages.</h3>
-            <p>Rank allocation, probabilistic precision search, compression, mixed-precision adaptation, and serving operators are separated by method boundary.</p>
-          </article>
-          <article>
-            <span>Shared tooling</span>
-            <h3>Examples and tests expose common workflows.</h3>
-            <p>Method packages are paired with focused examples so users can inspect the algorithm path before connecting full model or dataset pipelines.</p>
-          </article>
-          <article>
-            <span>Future scope</span>
-            <h3>Built to grow beyond the initial papers.</h3>
-            <p>The project structure leaves room for efficient inference, serving, post-training, and reinforcement learning components.</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="citation" class="section citation" aria-labelledby="citation-title">
-        <div class="section-heading">
-          <p class="eyebrow">Citation</p>
-          <h2 id="citation-title">Cite the toolkit and the method papers you use.</h2>
+      <section id="citation" class="section citation-section" aria-labelledby="citation-title">
+        <div class="section-intro split">
+          <div>
+            <p class="eyebrow">Citation</p>
+            <h2 id="citation-title">Cite the toolkit and the methods you use.</h2>
+          </div>
+          <p>The toolkit citation identifies the shared engineering base. Method citations are listed separately so papers can be cited precisely.</p>
         </div>
 
-        <div class="citation-feature">
+        <article class="citation-wide">
           <div>
             <span>Toolkit</span>
             <h3>TIDAL: Efficient Large-Model Systems Toolkit</h3>
@@ -169,12 +205,10 @@ python -m pip install -e ".[torch]"</code></pre>
   year = {2026},
   url = {https://github.com/manlenzzz/tidal-ai}
 }</code></pre>
-        </div>
+        </article>
 
         <div class="citation-grid" aria-label="Method paper citations">
-          <article>
-            <h3>RankAdaptor</h3>
-            <pre><code>@misc{zhou2024rankadaptor,
+          <article><h3>RankAdaptor</h3><pre><code>@misc{zhou2024rankadaptor,
   title = {RankAdaptor: Hierarchical Rank Allocation for Efficient Fine-Tuning Pruned LLMs via Performance Model},
   author = {Zhou, Changhai and Han, Shijie and Yang, Lining and Zhou, Yuhua and Cheng, Xu and Wang, Yibin and Li, Hongguang},
   year = {2024},
@@ -183,12 +217,8 @@ python -m pip install -e ".[torch]"</code></pre>
   primaryClass = {cs.CL},
   doi = {10.48550/arXiv.2406.15734},
   url = {https://arxiv.org/abs/2406.15734}
-}</code></pre>
-          </article>
-
-          <article>
-            <h3>QPruner</h3>
-            <pre><code>@misc{zhou2024qpruner,
+}</code></pre></article>
+          <article><h3>QPruner</h3><pre><code>@misc{zhou2024qpruner,
   title = {QPruner: Probabilistic Decision Quantization for Structured Pruning in Large Language Models},
   author = {Zhou, Changhai and Zhou, Yuhua and Han, Shijie and Qiao, Qian and Li, Hongguang},
   year = {2024},
@@ -197,12 +227,8 @@ python -m pip install -e ".[torch]"</code></pre>
   primaryClass = {cs.LG},
   doi = {10.48550/arXiv.2412.11629},
   url = {https://arxiv.org/abs/2412.11629}
-}</code></pre>
-          </article>
-
-          <article>
-            <h3>Dynamic Operator Optimization</h3>
-            <pre><code>@article{zhou2025dynamicoperator,
+}</code></pre></article>
+          <article><h3>Dynamic Operator Optimization</h3><pre><code>@article{zhou2025dynamicoperator,
   title = {Dynamic Operator Optimization for Efficient Multi-Tenant LoRA Model Serving},
   author = {Zhou, Changhai and Zhou, Yuhua and Zhang, Shiyang and Wang, Yibin and Liu, Zekai},
   journal = {Proceedings of the AAAI Conference on Artificial Intelligence},
@@ -212,12 +238,8 @@ python -m pip install -e ".[torch]"</code></pre>
   year = {2025},
   doi = {10.1609/aaai.v39i21.34453},
   url = {https://ojs.aaai.org/index.php/AAAI/article/view/34453}
-}</code></pre>
-          </article>
-
-          <article>
-            <h3>QR-Adaptor</h3>
-            <pre><code>@misc{zhou2025qradaptor,
+}</code></pre></article>
+          <article><h3>QR-Adaptor</h3><pre><code>@misc{zhou2025qradaptor,
   title = {Balancing Fidelity and Plasticity: Aligning Mixed-Precision Fine-Tuning with Linguistic Hierarchies},
   author = {Zhou, Changhai and Zhang, Shiyang and Zhou, Yuhua and Qiao, Qian and Gao, Jun and Weng, Shichao and Zhang, Weizhong and Jin, Cheng},
   year = {2025},
@@ -226,12 +248,8 @@ python -m pip install -e ".[torch]"</code></pre>
   primaryClass = {cs.LG},
   doi = {10.48550/arXiv.2505.03802},
   url = {https://arxiv.org/abs/2505.03802}
-}</code></pre>
-          </article>
-
-          <article>
-            <h3>AutoQRA</h3>
-            <pre><code>@misc{zhou2026autoqra,
+}</code></pre></article>
+          <article><h3>AutoQRA</h3><pre><code>@misc{zhou2026autoqra,
   title = {AutoQRA: Joint Optimization of Mixed-Precision Quantization and Low-rank Adapters for Efficient LLM Fine-Tuning},
   author = {Zhou, Changhai and Zhang, Shiyang and Zhou, Yuhua and Qiao, Qian and Gao, Jun and Jin, Cheng and Qin, Kaizhou and Zhang, Weizhong},
   year = {2026},
@@ -240,26 +258,24 @@ python -m pip install -e ".[torch]"</code></pre>
   primaryClass = {cs.LG},
   doi = {10.48550/arXiv.2602.22268},
   url = {https://arxiv.org/abs/2602.22268}
-}</code></pre>
-          </article>
-
-          <article>
-            <h3>Global Rank and Sparsity</h3>
-            <pre><code>@inproceedings{zhou2026globalranksparsity,
+}</code></pre></article>
+          <article><h3>Global Rank and Sparsity</h3><pre><code>@inproceedings{zhou2026globalranksparsity,
   title = {Large Language Model Compression with Global Rank and Sparsity Optimization},
   author = {Zhou, Changhai and Qiao, Qian and Zhou, Yuhua and Wu, Yuxin and Weng, Shichao and Zhang, Weizhong and Jin, Cheng},
   booktitle = {International Conference on Learning Representations},
   year = {2026},
   url = {https://openreview.net/forum?id=ZaPmQ0NHs4}
-}</code></pre>
-          </article>
+}</code></pre></article>
         </div>
       </section>
 
-      <section id="team" class="section team" aria-labelledby="team-title">
-        <div class="section-heading">
-          <p class="eyebrow">Team</p>
-          <h2 id="team-title">Maintained by the TIDAL team.</h2>
+      <section id="team" class="section team-section" aria-labelledby="team-title">
+        <div class="section-intro split">
+          <div>
+            <p class="eyebrow">Team</p>
+            <h2 id="team-title">Maintained by the TIDAL team.</h2>
+          </div>
+          <p>The project starts from research by our team and is structured as a reusable base for future efficient inference, serving, post-training, and RL components.</p>
         </div>
         <div class="team-list">
           <a href="https://github.com/manlenzzz">Changhai Zhou</a>
