@@ -19,16 +19,26 @@ The codebase is maintained by our team: Changhai Zhou, Yuhua Zhou, and Shiyang Z
 Use `tidal.workflows` or the `tidal` CLI for normal experiments. Method packages remain available for lower-level research code.
 
 ```python
-from tidal.workflows.compression import cap_compress
+from tidal.workflows.compression import cap_compress, qpruner_compress
 
-result = cap_compress(
+cap_run = cap_compress(
     model_id="hf-internal-testing/tiny-random-LlamaForCausalLM",
     pruner_targets="pruned_targets.txt",
     calibration_data="calibration.txt",
     budget=256,
     local_files_only=True,
 )
-result.save("runs/cap-smoke")
+cap_run.save("runs/cap-smoke")
+
+qpruner_run = qpruner_compress(
+    model_id="hf-internal-testing/tiny-random-LlamaForCausalLM",
+    pruner_targets="pruned_targets.txt",
+    calibration_data="calibration.txt",
+    candidate_bits=(2, 4, 8),
+    max_average_bits=4.0,
+    local_files_only=True,
+)
+qpruner_run.save("runs/qpruner-smoke")
 ```
 
 ```bash
@@ -38,14 +48,22 @@ tidal compress cap \
   --calibration-data calibration.txt \
   --budget 256 \
   --output runs/cap-smoke
+
+tidal compress qpruner \
+  --model-id hf-internal-testing/tiny-random-LlamaForCausalLM \
+  --pruner-targets pruned_targets.txt \
+  --calibration-data calibration.txt \
+  --candidate-bits 2,4,8 \
+  --max-average-bits 4.0 \
+  --output runs/qpruner-smoke
 ```
 
 Shared infrastructure is organized by user need:
 
 | Layer | Package | Purpose |
 | --- | --- | --- |
-| Workflows | `tidal.workflows` | Task-first APIs such as CAP compression |
-| CLI | `tidal.cli` | Command-line workflows such as `tidal compress cap` |
+| Workflows | `tidal.workflows` | Task-first APIs such as CAP and QPruner compression |
+| CLI | `tidal.cli` | Command-line workflows such as `tidal compress cap` and `tidal compress qpruner` |
 | Targets | `tidal.targets` | HF module roles, pruner/WANDA/LLM-Pruner target loading |
 | Data | `tidal.data` | Calibration text loading and causal-LM batches |
 | Reports | `tidal.reports` | Summary JSON and run artifact helpers |
@@ -163,11 +181,11 @@ peft_model = get_peft_model(model, build_lora_config(search.best_config))
 QPruner applies mixed-precision quantization after pruning. The local implementation collects calibration activations, computes `I(X; Y)` between layer outputs and model predictions, initializes a memory-constrained bitwidth plan, and can refine it with GP Bayesian optimization.
 
 ```python
-from tidal.methods.qpruner.torch import run_qpruner_mixed_precision
+from tidal.workflows.compression import qpruner_compress
 
-run = run_qpruner_mixed_precision(
-    pruned_model,
-    calibration_batches,
+run = qpruner_compress(
+    model=pruned_model,
+    calibration_batches=calibration_batches,
     candidate_bits=(2, 4, 8),
     max_average_bits=4.0,
     objective=finetune_and_eval_bitwidths,
@@ -175,6 +193,8 @@ run = run_qpruner_mixed_precision(
 )
 quantized_model = run.model
 ```
+
+For method-level experiments that already manage calibration and targets, use `tidal.methods.qpruner.torch.run_qpruner_mixed_precision` directly.
 
 ## Global Rank And Sparsity
 
