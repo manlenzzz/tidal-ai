@@ -16,10 +16,15 @@ def load_or_use_causal_lm(
     trust_remote_code: bool,
     revision: str | None,
     target_roles: object | None,
+    device: object | None = None,
+    dtype: object | None = None,
 ) -> tuple[object, str, object | None]:
     loaded_model_id = model_id or "in-memory"
     effective_target_roles = target_roles
     if model is not None:
+        # Only relocate a caller-supplied model when a device was explicitly requested.
+        if device is not None and hasattr(model, "to"):
+            model = model.to(device)
         return model, loaded_model_id, effective_target_roles
     if model_id is None:
         raise ValueError("either model or model_id is required")
@@ -30,11 +35,13 @@ def load_or_use_causal_lm(
         "cache_dir": cache_dir,
         "local_files_only": local_files_only,
         "trust_remote_code": trust_remote_code,
-        "torch_dtype": "auto",
+        "torch_dtype": dtype if dtype is not None else "auto",
     }
     if revision:
         load_kwargs["revision"] = revision
     target_model = AutoModelForCausalLM.from_pretrained(model_id, **load_kwargs)
+    if device is not None:
+        target_model = target_model.to(device)
     target_model.eval()
     if effective_target_roles is None:
         effective_target_roles = "modern"
@@ -77,6 +84,7 @@ def build_calibration_batches_from_text(
     cache_dir: str | None,
     local_files_only: bool,
     trust_remote_code: bool,
+    device: object | None = None,
 ) -> list[object] | None:
     if calibration_data is None:
         return None
@@ -101,5 +109,5 @@ def build_calibration_batches_from_text(
         texts,
         max_length=calibration_max_length,
         batch_size=calibration_batch_size,
-        device="cpu",
+        device=device if device is not None else "cpu",
     )

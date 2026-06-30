@@ -88,10 +88,14 @@ class CAPPackedLinear(nn.Module):
         self.out_features = int(sparse.shape[0])
         self.parameter_count = int(parameter_count)
         self.rank = int(low_rank_right.shape[0])
-        self.sparse_entries = int(torch.count_nonzero(sparse).item())
+        sparse = sparse.to(torch.float32)
+        sparse_indices = torch.nonzero(sparse, as_tuple=False).to(torch.long)
+        self.sparse_entries = int(sparse_indices.shape[0])
         self.register_buffer("low_rank_left", low_rank_left.to(torch.float32))
         self.register_buffer("low_rank_right", low_rank_right.to(torch.float32))
-        self.register_buffer("sparse", sparse.to(torch.float32))
+        self.register_buffer("sparse_indices", sparse_indices)
+        self.register_buffer("sparse_values", sparse[sparse_indices[:, 0], sparse_indices[:, 1]] if self.sparse_entries else sparse.new_empty((0,)))
+        self.register_buffer("_cached_weight", None)
         if bias is None:
             self.register_parameter("bias", None)
         else:
@@ -137,15 +141,69 @@ class CAPPackedLinear(nn.Module):
 
     def reconstructed_weight(self) -> torch.Tensor:
         if self.rank == 0:
-            low_rank = torch.zeros_like(self.sparse)
+            low_rank = self.low_rank_left.new_zeros((self.out_features, self.in_features))
         else:
             low_rank = self.low_rank_left @ self.low_rank_right
-        return low_rank + self.sparse
+        if self.sparse_entries == 0:
+            return low_rank
+        sparse = low_rank.new_zeros((self.out_features, self.in_features))
+        sparse[self.sparse_indices[:, 0], self.sparse_indices[:, 1]] = self.sparse_values.to(
+            dtype=low_rank.dtype,
+            device=low_rank.device,
+        )
+        return low_rank + sparse
+
+    @property
+    def residual_dtype(self) -> torch.dtype:
+        return self.sparse_values.dtype
+
+    @property
+    def residual_device(self) -> torch.device:
+        return self.sparse_values.device
+
+    def enable_inference_cache(
+        self,
+        *,
+        dtype: torch.dtype | None = None,
+        device: torch.device | str | None = None,
+    ) -> None:
+        weight = self.reconstructed_weight()
+        if dtype is not None or device is not None:
+            weight = weight.to(dtype=dtype or weight.dtype, device=device or weight.device)
+        self._cached_weight = weight.detach()
+
+    def clear_inference_cache(self) -> None:
+        self._cached_weight = None
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        weight = self.reconstructed_weight().to(dtype=inputs.dtype, device=inputs.device)
         bias = self.bias.to(dtype=inputs.dtype, device=inputs.device) if self.bias is not None else None
-        return F.linear(inputs, weight, bias)
+        cached_weight = self._cached_weight
+        if (
+            cached_weight is not None
+            and cached_weight.dtype == inputs.dtype
+            and cached_weight.device == inputs.device
+        ):
+            return F.linear(inputs, cached_weight, bias)
+        output = None
+        if self.rank != 0:
+            right = self.low_rank_right.to(dtype=inputs.dtype, device=inputs.device)
+            left = self.low_rank_left.to(dtype=inputs.dtype, device=inputs.device)
+            output = F.linear(F.linear(inputs, right), left)
+        if self.sparse_entries == 0:
+            if output is None:
+                output_shape = (*inputs.shape[:-1], self.out_features)
+                output = inputs.new_zeros(output_shape)
+            return output + bias if bias is not None else output
+        sparse_indices = self.sparse_indices.to(device=inputs.device)
+        rows = sparse_indices[:, 0]
+        cols = sparse_indices[:, 1]
+        values = self.sparse_values.to(dtype=inputs.dtype, device=inputs.device)
+        selected = inputs.index_select(-1, cols) * values
+        residual = inputs.new_zeros((*inputs.shape[:-1], self.out_features))
+        row_index = rows.view(*([1] * (selected.ndim - 1)), -1).expand_as(selected)
+        residual.scatter_add_(-1, row_index, selected)
+        result = residual if output is None else output + residual
+        return result + bias if bias is not None else result
 
 
 def _factorize_low_rank(compression: CAPCompression) -> tuple[torch.Tensor, torch.Tensor]:
@@ -311,6 +369,8 @@ def run_cap_compression(
     policy_steps: int = 80,
     samples_per_step: int = 8,
     seed: int | None = None,
+    rpca_backend: str = "numpy",
+    rpca_device: object | None = None,
 ) -> CAPRunResult:
     target = model if inplace else deepcopy(model)
     targets = collect_cap_targets(
@@ -336,6 +396,8 @@ def run_cap_compression(
         policy_steps=policy_steps,
         samples_per_step=samples_per_step,
         seed=seed,
+        backend=rpca_backend,
+        device=rpca_device,
     )
     _pack_global_result(target, modules, result)
     target._cap_global_result = result

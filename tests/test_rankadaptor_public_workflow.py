@@ -87,6 +87,34 @@ def test_rankadaptor_adapt_combines_pruner_targets_with_profiles(tmp_path):
     assert result.summary["pruner_target_count"] == 1
 
 
+def test_rankadaptor_adapt_without_peft_does_not_import_peft(monkeypatch):
+    from tidal.workflows.adaptation import rankadaptor_adapt
+
+    model = TinyBlock()
+
+    real_import = __import__
+
+    def fail_on_peft(name, *args, **kwargs):
+        if name == "peft":
+            raise ImportError("peft intentionally unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fail_on_peft)
+    result = rankadaptor_adapt(
+        model=model,
+        sensitivities={"fc1": 2.0, "fc2": 0.2},
+        budget=19,
+        min_rank=1,
+        max_rank=2,
+        rank_step=1,
+        apply_peft=False,
+    )
+
+    assert result.model is model
+    assert result.peft_config is None
+    assert result.summary["rank_config"] == {"fc1": 2, "fc2": 1}
+
+
 def test_tidal_cli_adapt_rankadaptor_help_lists_public_options():
     result = subprocess.run(
         [sys.executable, "-m", "tidal.cli.main", "adapt", "rankadaptor", "--help"],

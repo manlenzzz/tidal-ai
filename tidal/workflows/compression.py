@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
 from tidal.data import causal_lm_loss
+from tidal.device import resolve_device, resolve_dtype
 from tidal.methods.global_rank_sparsity.core import CAPCompression
 from tidal.methods.global_rank_sparsity.torch import run_cap_compression
 from tidal.methods.qpruner.torch import (
@@ -55,7 +56,12 @@ def cap_compress(
     samples_per_step: int = 2,
     seed: int | None = 0,
     inplace: bool = False,
+    device: object | None = None,
+    dtype: object | None = None,
+    rpca_backend: str = "numpy",
 ) -> CompressionResult:
+    resolved_device = resolve_device(device)
+    resolved_dtype = resolve_dtype(dtype, resolved_device)
     target_model, loaded_model_id, effective_target_roles = load_or_use_causal_lm(
         model=model,
         model_id=model_id,
@@ -64,6 +70,8 @@ def cap_compress(
         trust_remote_code=trust_remote_code,
         revision=revision,
         target_roles=target_roles,
+        device=resolved_device,
+        dtype=resolved_dtype,
     )
     pruner_names, effective_filter = merge_pruner_filter(
         pruner_targets=pruner_targets,
@@ -81,6 +89,7 @@ def cap_compress(
         cache_dir=cache_dir,
         local_files_only=local_files_only,
         trust_remote_code=trust_remote_code,
+        device=resolved_device,
     )
 
     method_result = run_cap_compression(
@@ -96,6 +105,8 @@ def cap_compress(
         policy_steps=policy_steps,
         samples_per_step=samples_per_step,
         seed=seed,
+        rpca_backend=rpca_backend,
+        rpca_device=resolved_device,
     )
     summary = summarize_cap_run(
         method_result,
@@ -135,12 +146,16 @@ def qpruner_compress(
     name_filter: Callable[[str], bool] | None = None,
     seed: int | None = 0,
     inplace: bool = False,
+    device: object | None = None,
+    dtype: object | None = None,
 ) -> CompressionResult:
     if max_memory_bits is None and max_average_bits is None:
         raise ValueError("provide max_memory_bits or max_average_bits")
     if importances is None and calibration_batches is None and calibration_data is None:
         raise ValueError("importances, calibration_batches, or calibration_data is required")
 
+    resolved_device = resolve_device(device)
+    resolved_dtype = resolve_dtype(dtype, resolved_device)
     target_model, loaded_model_id, effective_target_roles = load_or_use_causal_lm(
         model=model,
         model_id=model_id,
@@ -149,6 +164,8 @@ def qpruner_compress(
         trust_remote_code=trust_remote_code,
         revision=revision,
         target_roles=target_roles,
+        device=resolved_device,
+        dtype=resolved_dtype,
     )
     pruner_names, effective_filter = merge_pruner_filter(
         pruner_targets=pruner_targets,
@@ -169,6 +186,7 @@ def qpruner_compress(
             cache_dir=cache_dir,
             local_files_only=local_files_only,
             trust_remote_code=trust_remote_code,
+            device=resolved_device,
         )
 
     if importances is not None:

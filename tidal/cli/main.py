@@ -47,6 +47,9 @@ def build_parser() -> argparse.ArgumentParser:
     cap.add_argument("--revision", default=None)
     cap.add_argument("--local-files-only", action="store_true")
     cap.add_argument("--trust-remote-code", action="store_true")
+    cap.add_argument("--device", default=None, help="Target device: cpu, cuda[:N], or npu[:N]. Auto-detects when omitted.")
+    cap.add_argument("--dtype", default=None, help="Compute dtype: float32, float16, bfloat16, or auto. Device-aware default when omitted.")
+    cap.add_argument("--rpca-backend", default="numpy", choices=["numpy", "torch"], help="CAP Stage 1 RPCA backend. 'torch' runs SVD on the device.")
     cap.add_argument("--output", default=None, help="Optional run directory. Writes summary.json when supplied.")
 
     qpruner = compress_subparsers.add_parser("qpruner", help="Run QPruner mixed-precision compression.")
@@ -68,6 +71,8 @@ def build_parser() -> argparse.ArgumentParser:
     qpruner.add_argument("--revision", default=None)
     qpruner.add_argument("--local-files-only", action="store_true")
     qpruner.add_argument("--trust-remote-code", action="store_true")
+    qpruner.add_argument("--device", default=None, help="Target device: cpu, cuda[:N], or npu[:N]. Auto-detects when omitted.")
+    qpruner.add_argument("--dtype", default=None, help="Compute dtype: float32, float16, bfloat16, or auto. Device-aware default when omitted.")
     qpruner.add_argument("--output", default=None, help="Optional run directory. Writes summary.json when supplied.")
 
     adapt = subparsers.add_parser("adapt", help="Adaptation and fine-tuning preparation workflows.")
@@ -91,6 +96,8 @@ def build_parser() -> argparse.ArgumentParser:
     rankadaptor.add_argument("--local-files-only", action="store_true")
     rankadaptor.add_argument("--trust-remote-code", action="store_true")
     rankadaptor.add_argument("--no-apply-peft", action="store_true", help="Only emit the selected PEFT config summary; do not wrap the model.")
+    rankadaptor.add_argument("--device", default=None, help="Target device: cpu, cuda[:N], or npu[:N]. Auto-detects when omitted.")
+    rankadaptor.add_argument("--dtype", default=None, help="Compute dtype: float32, float16, bfloat16, or auto. Device-aware default when omitted.")
     rankadaptor.add_argument("--output", default=None, help="Optional run directory. Writes summary.json when supplied.")
     return parser
 
@@ -117,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
             policy_steps=args.policy_steps,
             samples_per_step=args.samples_per_step,
             seed=args.seed,
+            device=args.device,
+            dtype=args.dtype,
+            rpca_backend=args.rpca_backend,
         )
         if args.output:
             result.save(Path(args.output))
@@ -142,6 +152,8 @@ def main(argv: list[str] | None = None) -> int:
             refine_trials=args.refine_trials,
             bins=args.bins,
             seed=args.seed,
+            device=args.device,
+            dtype=args.dtype,
         )
         if args.output:
             result.save(Path(args.output))
@@ -166,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
             alpha_multiplier=args.alpha_multiplier,
             apply_peft=not args.no_apply_peft,
             seed=args.seed,
+            device=args.device,
+            dtype=args.dtype,
         )
         if args.output:
             result.save(Path(args.output))

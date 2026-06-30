@@ -47,12 +47,99 @@ class QuantizedLinear(nn.Module):
         self.bits = int(bits)
         self.in_features = int(weight_codes.shape[1])
         self.out_features = int(weight_codes.shape[0])
-        self.register_buffer("weight_codes", weight_codes.to(torch.int8))
+        self.code_count = int(weight_codes.numel())
+        packed_weight_codes = self._pack_weight_codes(weight_codes, self.bits).to(device=weight_codes.device)
+        self.register_buffer("packed_weight_codes", packed_weight_codes)
         self.register_buffer("scale", scale.reshape(()).to(torch.float32))
+        self.register_buffer("_cached_weight", None)
+        self.register_buffer("_cached_weight_codes", None)
+        self.register_buffer("_cached_scaled_weight_codes", None)
+        self.register_buffer("_cached_scale", None)
+        self.register_buffer("_cached_bias", None)
+        self._released_packed_code_bytes = 0
+        self._scaled_code_matmul_enabled = False
         if bias is None:
             self.register_parameter("bias", None)
         else:
             self.bias = nn.Parameter(bias.detach().clone(), requires_grad=False)
+
+    @staticmethod
+    def _pack_weight_codes(weight_codes: torch.Tensor, bits: int) -> torch.Tensor:
+        qmax = (1 << (bits - 1)) - 1
+        codes = weight_codes.detach().to(device="cpu", dtype=torch.int16).reshape(-1)
+        if codes.numel() == 0:
+            return torch.empty(0, dtype=torch.uint8)
+        if int(codes.min()) < -qmax or int(codes.max()) > qmax:
+            raise ValueError(f"weight codes must be in [-{qmax}, {qmax}] for {bits}-bit quantization")
+        unsigned = (codes.to(torch.long) + qmax).to(torch.long)
+        packed_len = (int(unsigned.numel()) * bits + 7) // 8
+        mask = (1 << bits) - 1
+        if 8 % bits == 0:
+            values_per_byte = 8 // bits
+            pad = (-int(unsigned.numel())) % values_per_byte
+            if pad:
+                unsigned = torch.cat([unsigned, torch.zeros(pad, dtype=unsigned.dtype)])
+            shifts = torch.arange(values_per_byte, dtype=torch.long) * bits
+            packed = ((unsigned.reshape(-1, values_per_byte) & mask) << shifts).sum(dim=1)
+            return packed.to(torch.uint8)
+
+        bit_offsets = torch.arange(unsigned.numel(), dtype=torch.long) * bits
+        byte_indices = bit_offsets // 8
+        shifts = bit_offsets % 8
+        packed = torch.zeros(packed_len, dtype=torch.long)
+        packed.scatter_add_(0, byte_indices, (unsigned << shifts) & 0xFF)
+        crosses_byte = shifts + bits > 8
+        if bool(crosses_byte.any()):
+            packed.scatter_add_(
+                0,
+                byte_indices[crosses_byte] + 1,
+                unsigned[crosses_byte] >> (8 - shifts[crosses_byte]),
+            )
+        return packed.to(torch.uint8)
+
+    @staticmethod
+    def _unpack_weight_codes(
+        packed_weight_codes: torch.Tensor,
+        *,
+        bits: int,
+        code_count: int,
+        out_features: int,
+        in_features: int,
+    ) -> torch.Tensor:
+        qmax = (1 << (bits - 1)) - 1
+        packed = packed_weight_codes.detach().to(device="cpu", dtype=torch.long).reshape(-1)
+        if code_count == 0:
+            return torch.empty((out_features, in_features), dtype=torch.int8)
+        mask = (1 << bits) - 1
+        if 8 % bits == 0:
+            values_per_byte = 8 // bits
+            shifts = torch.arange(values_per_byte, dtype=torch.long) * bits
+            unsigned = ((packed.reshape(-1, 1) >> shifts) & mask).reshape(-1)[:code_count]
+        else:
+            bit_offsets = torch.arange(code_count, dtype=torch.long) * bits
+            byte_indices = bit_offsets // 8
+            shifts = bit_offsets % 8
+            unsigned = packed[byte_indices] >> shifts
+            crosses_byte = shifts + bits > 8
+            if bool(crosses_byte.any()):
+                unsigned[crosses_byte] += packed[byte_indices[crosses_byte] + 1] << (8 - shifts[crosses_byte])
+            unsigned = unsigned & mask
+        signed = unsigned.to(torch.int16) - qmax
+        return signed.reshape(out_features, in_features).to(torch.int8)
+
+    @property
+    def code_device(self) -> torch.device:
+        return self.packed_weight_codes.device
+
+    @property
+    def weight_codes(self) -> torch.Tensor:
+        return self._unpack_weight_codes(
+            self.packed_weight_codes,
+            bits=self.bits,
+            code_count=self.code_count,
+            out_features=self.out_features,
+            in_features=self.in_features,
+        ).to(device=self.code_device)
 
     @classmethod
     def from_linear(cls, module: nn.Linear, *, bits: int) -> "QuantizedLinear":
@@ -70,11 +157,197 @@ class QuantizedLinear(nn.Module):
         return cls(codes, scale, module.bias, bits=bits)
 
     def dequantized_weight(self) -> torch.Tensor:
-        return self.weight_codes.to(torch.float32) * self.scale
+        return self.dequantized_weight_from_codes(self.weight_codes)
+
+    def dequantized_weight_from_codes(
+        self,
+        codes: torch.Tensor,
+        *,
+        dtype: torch.dtype | None = None,
+        device: torch.device | str | None = None,
+    ) -> torch.Tensor:
+        target_dtype = dtype or torch.float32
+        target_device = device or self.scale.device
+        target_device = torch.device(target_device)
+        cached_scale = self._cached_scale
+        scale = (
+            cached_scale
+            if (
+                cached_scale is not None
+                and cached_scale.dtype == target_dtype
+                and cached_scale.device == target_device
+            )
+            else self.scale.to(device=target_device, dtype=target_dtype)
+        )
+        return codes.to(device=target_device, dtype=target_dtype) * scale
+
+    def enable_inference_cache(
+        self,
+        *,
+        dtype: torch.dtype | None = None,
+        device: torch.device | str | None = None,
+    ) -> None:
+        weight = self.dequantized_weight()
+        if dtype is not None or device is not None:
+            weight = weight.to(dtype=dtype or weight.dtype, device=device or weight.device)
+        self._cached_weight = weight.detach()
+
+    def enable_code_cache(
+        self,
+        *,
+        device: torch.device | str | None = None,
+        release_packed_codes: bool = False,
+    ) -> None:
+        codes = self.weight_codes
+        if device is not None:
+            codes = codes.to(device=device)
+        self._cached_weight_codes = codes.detach()
+        self._cached_scaled_weight_codes = None
+        self._scaled_code_matmul_enabled = False
+        if release_packed_codes:
+            self.release_packed_codes()
+
+    def enable_scaled_code_matmul(
+        self,
+        *,
+        device: torch.device | str | None = None,
+        dtype: torch.dtype | None = None,
+        release_packed_codes: bool = False,
+    ) -> None:
+        self.enable_code_cache(device=device, release_packed_codes=release_packed_codes)
+        if dtype is not None and self._cached_weight_codes is not None:
+            self._cached_scaled_weight_codes = self._cached_weight_codes.to(dtype=dtype).detach()
+        self._scaled_code_matmul_enabled = True
+
+    def enable_aux_cache(
+        self,
+        *,
+        dtype: torch.dtype | None = None,
+        device: torch.device | str | None = None,
+    ) -> None:
+        target_dtype = dtype or self.scale.dtype
+        target_device = device or self.scale.device
+        self._cached_scale = self.scale.to(dtype=target_dtype, device=target_device).detach()
+        if self.bias is None:
+            self._cached_bias = None
+        else:
+            self._cached_bias = self.bias.to(dtype=target_dtype, device=target_device).detach()
+
+    def release_packed_codes(self) -> None:
+        if self._cached_weight_codes is None:
+            raise RuntimeError("packed codes can only be released after enabling the code cache")
+        packed = self.packed_weight_codes
+        self._released_packed_code_bytes += int(packed.numel() * packed.element_size())
+        self.packed_weight_codes = torch.empty(0, dtype=torch.uint8, device=packed.device)
+
+    def clear_inference_cache(self) -> None:
+        self._cached_weight = None
+        self._cached_weight_codes = None
+        self._cached_scaled_weight_codes = None
+        self._cached_scale = None
+        self._cached_bias = None
+        self._scaled_code_matmul_enabled = False
+
+    @property
+    def scaled_code_matmul_enabled(self) -> bool:
+        return bool(self._scaled_code_matmul_enabled and self._cached_weight_codes is not None)
+
+    @property
+    def cached_code_bytes(self) -> int:
+        cached_codes = self._cached_weight_codes
+        if cached_codes is None:
+            return 0
+        return int(cached_codes.numel() * cached_codes.element_size())
+
+    @property
+    def cached_scaled_code_bytes(self) -> int:
+        cached_codes = self._cached_scaled_weight_codes
+        if cached_codes is None:
+            return 0
+        return int(cached_codes.numel() * cached_codes.element_size())
+
+    @property
+    def cached_weight_bytes(self) -> int:
+        cached_weight = self._cached_weight
+        if cached_weight is None:
+            return 0
+        return int(cached_weight.numel() * cached_weight.element_size())
+
+    @property
+    def cached_scale_bytes(self) -> int:
+        cached_scale = self._cached_scale
+        if cached_scale is None:
+            return 0
+        return int(cached_scale.numel() * cached_scale.element_size())
+
+    @property
+    def cached_bias_bytes(self) -> int:
+        cached_bias = self._cached_bias
+        if cached_bias is None:
+            return 0
+        return int(cached_bias.numel() * cached_bias.element_size())
+
+    @property
+    def cached_aux_bytes(self) -> int:
+        return self.cached_scale_bytes + self.cached_bias_bytes
+
+    @property
+    def released_packed_code_bytes(self) -> int:
+        return int(self._released_packed_code_bytes)
+
+    def _forward_scale(self, inputs: torch.Tensor) -> torch.Tensor:
+        cached_scale = self._cached_scale
+        if cached_scale is not None and cached_scale.dtype == inputs.dtype and cached_scale.device == inputs.device:
+            return cached_scale
+        return self.scale.to(dtype=inputs.dtype, device=inputs.device)
+
+    def _forward_bias(self, inputs: torch.Tensor) -> torch.Tensor | None:
+        if self.bias is None:
+            return None
+        cached_bias = self._cached_bias
+        if cached_bias is not None and cached_bias.dtype == inputs.dtype and cached_bias.device == inputs.device:
+            return cached_bias
+        return self.bias.to(dtype=inputs.dtype, device=inputs.device)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        weight = self.dequantized_weight().to(dtype=inputs.dtype, device=inputs.device)
-        bias = self.bias.to(dtype=inputs.dtype, device=inputs.device) if self.bias is not None else None
+        cached_weight = self._cached_weight
+        if (
+            cached_weight is not None
+            and cached_weight.dtype == inputs.dtype
+            and cached_weight.device == inputs.device
+        ):
+            weight = cached_weight
+        else:
+            cached_codes = self._cached_weight_codes
+            if (
+                self.scaled_code_matmul_enabled
+                and cached_codes is not None
+                and cached_codes.device == inputs.device
+            ):
+                scaled_codes = self._cached_scaled_weight_codes
+                code_weight = (
+                    scaled_codes
+                    if (
+                        scaled_codes is not None
+                        and scaled_codes.dtype == inputs.dtype
+                        and scaled_codes.device == inputs.device
+                    )
+                    else cached_codes.to(dtype=inputs.dtype)
+                )
+                code_output = F.linear(inputs, code_weight, None) * self._forward_scale(inputs)
+                bias = self._forward_bias(inputs)
+                if bias is not None:
+                    code_output = code_output + bias
+                return code_output
+            elif cached_codes is not None and cached_codes.device == inputs.device:
+                weight = self.dequantized_weight_from_codes(
+                    cached_codes,
+                    dtype=inputs.dtype,
+                    device=inputs.device,
+                )
+            else:
+                weight = self.dequantized_weight().to(dtype=inputs.dtype, device=inputs.device)
+        bias = self._forward_bias(inputs)
         return F.linear(inputs, weight, bias)
 
 

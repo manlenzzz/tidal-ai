@@ -16,6 +16,7 @@ from tidal.methods.rankadaptor.core import (
 from tidal.reports import save_summary_json, summarize_rankadaptor_run
 from tidal.targets import canonicalize_module_name
 from tidal.workflows.common import load_or_use_causal_lm, merge_pruner_filter
+from tidal.device import resolve_device, resolve_dtype
 
 
 @dataclass(frozen=True)
@@ -23,7 +24,7 @@ class AdaptationResult:
     model: object
     summary: dict[str, object]
     method_result: object
-    peft_config: object
+    peft_config: object | None
     profiles: tuple[ModuleProfile, ...]
 
     def save(self, output_dir: str | Path) -> Path:
@@ -110,7 +111,11 @@ def rankadaptor_adapt(
     inplace: bool = False,
     seed: int | None = 0,
     peft_kwargs: Mapping[str, object] | None = None,
+    device: object | None = None,
+    dtype: object | None = None,
 ) -> AdaptationResult:
+    resolved_device = resolve_device(device)
+    resolved_dtype = resolve_dtype(dtype, resolved_device)
     target_model, loaded_model_id, effective_target_roles = load_or_use_causal_lm(
         model=model,
         model_id=model_id,
@@ -119,6 +124,8 @@ def rankadaptor_adapt(
         trust_remote_code=trust_remote_code,
         revision=revision,
         target_roles=target_roles,
+        device=resolved_device,
+        dtype=resolved_dtype,
     )
     pruner_names, effective_filter = merge_pruner_filter(
         pruner_targets=pruner_targets,
@@ -142,14 +149,14 @@ def rankadaptor_adapt(
         max_steps=max_steps,
         min_gain=min_gain,
     )
-    lora_config = build_lora_config(
-        search_result.config,
-        alpha_multiplier=alpha_multiplier,
-        **dict(peft_kwargs or {}),
-    )
-
     output_model = target_model
+    lora_config = None
     if apply_peft:
+        lora_config = build_lora_config(
+            search_result.config,
+            alpha_multiplier=alpha_multiplier,
+            **dict(peft_kwargs or {}),
+        )
         from peft import get_peft_model
 
         peft_base = target_model if inplace else deepcopy(target_model)

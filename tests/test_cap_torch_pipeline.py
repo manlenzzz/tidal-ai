@@ -118,3 +118,79 @@ def test_run_cap_compression_returns_compressed_model_and_metadata():
     assert isinstance(result.compressed_model.model.layers[0].self_attn.q_proj, CAPPackedLinear)
     assert isinstance(model.model.layers[0].self_attn.q_proj, nn.Linear)
     assert {summary.name for summary in result.layer_summaries} <= {target.name for target in result.targets}
+
+
+def test_cap_packed_linear_low_rank_zero_sparse_forward_avoids_weight_reconstruction(monkeypatch):
+    left = torch.tensor([[1.0], [2.0], [3.0]], dtype=torch.float32)
+    right = torch.tensor([[4.0, 5.0]], dtype=torch.float32)
+    sparse = torch.zeros(3, 2, dtype=torch.float32)
+    packed = CAPPackedLinear(left, right, sparse, None, parameter_count=5)
+    inputs = torch.tensor([[1.0, -1.0], [2.0, 3.0]], dtype=torch.float32)
+
+    def fail_reconstruction():
+        raise AssertionError("dense reconstruction should not be used for zero-sparse low-rank forward")
+
+    monkeypatch.setattr(packed, "reconstructed_weight", fail_reconstruction)
+
+    out = packed(inputs)
+    expected = torch.nn.functional.linear(
+        torch.nn.functional.linear(inputs, right),
+        left,
+    )
+
+    assert torch.allclose(out, expected)
+
+
+def test_cap_packed_linear_sparse_residual_forward_avoids_weight_reconstruction(monkeypatch):
+    left = torch.tensor([[1.0], [2.0], [3.0]], dtype=torch.float32)
+    right = torch.tensor([[4.0, 5.0]], dtype=torch.float32)
+    sparse = torch.tensor([[0.0, 0.25], [0.5, 0.0], [0.0, -0.75]], dtype=torch.float32)
+    packed = CAPPackedLinear(left, right, sparse, None, parameter_count=8)
+    inputs = torch.tensor([[1.0, -1.0], [2.0, 3.0]], dtype=torch.float32)
+    dense_weight = left @ right + sparse
+
+    def fail_reconstruction():
+        raise AssertionError("sparse-residual forward should not reconstruct dense weight")
+
+    monkeypatch.setattr(packed, "reconstructed_weight", fail_reconstruction)
+
+    out = packed(inputs)
+    expected = torch.nn.functional.linear(inputs, dense_weight)
+
+    assert torch.allclose(out, expected)
+
+
+def test_cap_packed_linear_stores_sparse_residual_as_coordinates():
+    left = torch.tensor([[1.0], [2.0], [3.0]], dtype=torch.float32)
+    right = torch.tensor([[4.0, 5.0]], dtype=torch.float32)
+    sparse = torch.tensor([[0.0, 0.25], [0.5, 0.0], [0.0, -0.75]], dtype=torch.float32)
+    packed = CAPPackedLinear(left, right, sparse, None, parameter_count=8)
+
+    assert "sparse" not in dict(packed.named_buffers())
+    assert packed.sparse_indices.shape == (3, 2)
+    assert packed.sparse_values.shape == (3,)
+    assert torch.equal(packed.sparse_indices[:, 0], torch.tensor([0, 1, 2]))
+    assert torch.equal(packed.sparse_indices[:, 1], torch.tensor([1, 0, 1]))
+    assert torch.allclose(packed.sparse_values, torch.tensor([0.25, 0.5, -0.75]))
+    assert torch.allclose(packed.reconstructed_weight(), left @ right + sparse)
+
+
+def test_cap_packed_linear_inference_cache_reuses_reconstructed_weight(monkeypatch):
+    left = torch.tensor([[1.0], [2.0], [3.0]], dtype=torch.float32)
+    right = torch.tensor([[4.0, 5.0]], dtype=torch.float32)
+    sparse = torch.ones(3, 2, dtype=torch.float32) * 0.25
+    packed = CAPPackedLinear(left, right, sparse, None, parameter_count=11)
+    inputs = torch.tensor([[1.0, -1.0], [2.0, 3.0]], dtype=torch.float32)
+    expected = packed(inputs)
+
+    packed.enable_inference_cache(dtype=torch.float32, device=torch.device("cpu"))
+    cached = packed(inputs)
+    assert torch.allclose(cached, expected)
+
+    def fail_reconstruction():
+        raise AssertionError("cached inference should not reconstruct dense weight")
+
+    monkeypatch.setattr(packed, "reconstructed_weight", fail_reconstruction)
+    cached_again = packed(inputs)
+
+    assert torch.allclose(cached_again, expected)

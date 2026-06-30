@@ -90,8 +90,23 @@ def robust_pca(
     mu: float | None = None,
     max_iter: int = 200,
     tol: float = 1e-6,
+    backend: str = "numpy",
+    device: object | None = None,
 ) -> RPCAResult:
-    """ADMM robust PCA: minimize ||L||_* + lam ||S||_1 subject to W=L+S."""
+    """ADMM robust PCA: minimize ||L||_* + lam ||S||_1 subject to W=L+S.
+
+    ``backend="numpy"`` (default) runs the float64 CPU implementation.
+    ``backend="torch"`` runs the same ADMM recurrence with ``torch.linalg.svd``
+    on the resolved device (float32) and returns a numpy ``RPCAResult`` so all
+    downstream Stage 2 logic is unchanged.
+    """
+
+    if backend not in ("numpy", "torch"):
+        raise ValueError("backend must be 'numpy' or 'torch'")
+    if backend == "torch":
+        return _robust_pca_torch(
+            matrix, lam=lam, mu=mu, max_iter=max_iter, tol=tol, device=device
+        )
 
     w = np.asarray(matrix, dtype=np.float64)
     if w.ndim != 2:
@@ -119,6 +134,57 @@ def robust_pca(
         if residual_norm <= tol:
             break
     return RPCAResult(low_rank=low_rank, sparse=sparse, iterations=iteration, residual_norm=residual_norm)
+
+
+def _robust_pca_torch(
+    matrix: np.ndarray,
+    *,
+    lam: float | None,
+    mu: float | None,
+    max_iter: int,
+    tol: float,
+    device: object | None,
+) -> RPCAResult:
+    """Torch ADMM robust PCA on the resolved device (float32), numpy result out."""
+    import torch
+
+    from tidal.device import resolve_device
+
+    resolved = resolve_device(device)
+    w = torch.as_tensor(np.asarray(matrix, dtype=np.float32), device=resolved)
+    if w.ndim != 2:
+        raise ValueError("matrix must be 2D")
+    rows, cols = int(w.shape[0]), int(w.shape[1])
+    lam_v = lam if lam is not None else 1.0 / float(np.sqrt(max(rows, cols)))
+    abs_sum = float(torch.sum(torch.abs(w)).item())
+    mu_v = mu if mu is not None else rows * cols / (4.0 * abs_sum + 1e-12)
+    if lam_v <= 0 or mu_v <= 0:
+        raise ValueError("lam and mu must be positive")
+
+    low_rank = torch.zeros_like(w)
+    sparse = torch.zeros_like(w)
+    dual = torch.zeros_like(w)
+    norm_w = float(torch.linalg.norm(w)) + 1e-12
+
+    residual_norm = float("inf")
+    iteration = 0
+    for iteration in range(1, max_iter + 1):
+        u, sigma, vt = torch.linalg.svd(w - sparse + dual / mu_v, full_matrices=False)
+        sigma_shrunk = torch.clamp(sigma - 1.0 / mu_v, min=0.0)
+        low_rank = (u * sigma_shrunk) @ vt
+        residual_in = w - low_rank + dual / mu_v
+        sparse = torch.sign(residual_in) * torch.clamp(torch.abs(residual_in) - lam_v / mu_v, min=0.0)
+        residual = w - low_rank - sparse
+        dual = dual + mu_v * residual
+        residual_norm = float(torch.linalg.norm(residual) / norm_w)
+        if residual_norm <= tol:
+            break
+    return RPCAResult(
+        low_rank=low_rank.detach().cpu().numpy().astype(np.float64),
+        sparse=sparse.detach().cpu().numpy().astype(np.float64),
+        iterations=iteration,
+        residual_norm=residual_norm,
+    )
 
 
 def _candidate_table(rpca: RPCAResult) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -187,13 +253,21 @@ def build_cap_candidate_pool(
     *,
     lam: float | None = None,
     max_iter: int = 200,
+    backend: str = "numpy",
+    device: object | None = None,
 ) -> CAPCandidatePool:
     """Run CAP Stage 1 and expose rank/sparse candidates for Stage 2."""
 
     if not matrices:
         raise ValueError("matrices must not be empty")
     decompositions = {
-        name: robust_pca(np.asarray(matrix, dtype=np.float64), lam=lam, max_iter=max_iter)
+        name: robust_pca(
+            np.asarray(matrix, dtype=np.float64),
+            lam=lam,
+            max_iter=max_iter,
+            backend=backend,
+            device=device,
+        )
         for name, matrix in matrices.items()
     }
     candidates: list[CAPCandidate] = []
@@ -444,6 +518,8 @@ def optimize_global_rank_sparsity_for_matrices(
     learning_rate: float = 0.1,
     budget_penalty: float = 2.0,
     seed: int | None = None,
+    backend: str = "numpy",
+    device: object | None = None,
 ) -> CAPGlobalSearchResult:
     """CAP Stage 2 global Bernoulli allocation across multiple matrices.
 
@@ -461,7 +537,7 @@ def optimize_global_rank_sparsity_for_matrices(
         raise ValueError("learning_rate must be positive")
 
     matrix_arrays = {name: np.asarray(matrix, dtype=np.float64) for name, matrix in matrices.items()}
-    pool = build_cap_candidate_pool(matrix_arrays, lam=lam, max_iter=max_iter)
+    pool = build_cap_candidate_pool(matrix_arrays, lam=lam, max_iter=max_iter, backend=backend, device=device)
     rpcas = dict(pool.decompositions)
     offsets: dict[str, tuple[int, int]] = {}
     values_list: list[np.ndarray] = []
